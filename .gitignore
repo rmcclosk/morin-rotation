@@ -1,0 +1,6 @@
+settings.R
+*.bam
+*.bai
+*.fasta
+*.jar
+SureSelect_regions.list
