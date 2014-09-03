@@ -9,7 +9,10 @@ bam.dir <- "."
 coverage.dir <- "coverage"
 
 # GATK jar file.
-gatk.jar <- "/home/rmccloskey/bin/Genome..."
+gatk.jar <- "GenomeAnalysisTK.jar"
+
+# Where is java?
+java.bin <- "/usr/bin/java"
 
 # Human genome reference.
 human.fasta <- "human_g1k_v37.fasta"
