@@ -1,10 +1,12 @@
-# File listing matched tumor-normal pairs.  The file should contain four
-# columns: Normal, Pre, ?, Post. Normal, Pre, and Post should have a file name.
-# I don't know what the third column is.
+# File listing matched tumor-normal pairs.  The file should contain six
+# columns: normal ID, normal file, pre ID, pre file, post ID, post file.
 matching.file <- "sample_matching.txt"
 
 # Location of BAM files and indices.
 bam.dir <- "."
+
+# Where to put coverage files output by GATK.
+coverage.dir <- "coverage"
 
 # GATK jar file.
 gatk.jar <- "/home/rmccloskey/bin/Genome..."
