@@ -28,14 +28,18 @@ Setting up exomeCNV
         https://www.broadinstitute.org/gatk/download
 
    It will prompt you to log in or register. Click "register", follow the
-   prompts, and wait for a confirmation email.
+   prompts, and wait for a confirmation email. Once you get one, go back to the
+   download page, click "GATK" (you don't need Queue). Navigate to where the
+   archive is, then do
 
-   Alternatively, you can download the GATK source code from Github:
+        tar xf GenomeAnalysisTK-3.2-2.tar.bz2
 
-        https://github.com/broadgsa/gatk-protected/
+   This will produce a jar file. To use GATK more easily, copy the jar file to
+   $HOME/bin, then create an executable script called "gatk" in $HOME/bin with
+   the following contents.
 
-   However, when I tried this, the code did not compile.
-
+        #!/bin/sh
+        java -jar $HOME/bin/GenomeAnalysis.jar "$@"
 
 Setting up HMMcopy
 ------------------
