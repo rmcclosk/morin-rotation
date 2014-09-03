@@ -28,9 +28,10 @@ Setting up exomeCNV
         https://www.broadinstitute.org/gatk/download
 
    It will prompt you to log in or register. Click "register", follow the
-   prompts, and wait for a confirmation email. Once you get one, go back to the
-   download page, click "GATK" (you don't need Queue). Navigate to where the
-   archive is, then do
+   prompts, and wait for a confirmation email. 
+   
+4. Install GATK. Once you have an account, go back to the download page, click
+   "GATK" (you don't need Queue). Navigate to where the archive is, then do
 
         tar xf GenomeAnalysisTK-3.2-2.tar.bz2
 
@@ -40,6 +41,12 @@ Setting up exomeCNV
 
         #!/bin/sh
         java -jar $HOME/bin/GenomeAnalysis.jar "$@"
+
+5. Download the human genome reference sequence. This is quite a large file (~850 MB).
+
+        wget ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/human_g1k_v37.fasta.gz
+        gunzip human_g1k_v37.fasta.gz
+
 
 Setting up HMMcopy
 ------------------
