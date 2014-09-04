@@ -4,3 +4,8 @@ settings.R
 *.fasta
 *.jar
 SureSelect_regions.list
+*.sample_summary
+*.sample_interval_statistics
+*.sample_interval_summary
+*.sample_statistics
+nohup.out

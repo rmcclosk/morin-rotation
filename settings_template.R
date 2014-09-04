@@ -8,6 +8,12 @@ bam.dir <- "."
 # Where to put coverage files output by GATK.
 coverage.dir <- "coverage"
 
+# Where to put downsampled data.
+sample.dir <- "downsampled"
+
+# Where to put coverage files for downsampled data.
+sample.coverage.dir <- "coverage_downsampled"
+
 # GATK jar file.
 gatk.jar <- "GenomeAnalysisTK.jar"
 
