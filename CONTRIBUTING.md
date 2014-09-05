@@ -51,14 +51,18 @@ Setting up exomeCNV
         #!/bin/sh
         java -jar $HOME/bin/GenomeAnalysis.jar "$@"
 
-5. Download the human genome reference sequence. This is quite a large file (~850 MB).
+5. Install the DNAcopy R package. From the R console:
 
-        wget ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/human_g1k_v37.fasta.gz
-        gunzip human_g1k_v37.fasta.gz
+        source("http://bioconductor.org/biocLite.R")
+        biocLite("DNAcopy")
 
-6. Retrieve the exome list from genesis. Its location is
+7. Install ExomeCNV. First get the file.
 
-        /projects/rmorin/analysis/aligned/DLBCL_EXOME/copy_number/SureSelect_regions.list
+        wget http://cran.r-project.org/src/contrib/Archive/ExomeCNV/ExomeCNV_1.4.tar.gz
+
+    Then from the R console:
+
+        install.packages("ExomeCNV_1.4.tar.gz", repos=NULL, type="source")
 
 Setting up HMMcopy
 ------------------
@@ -87,3 +91,13 @@ You should already have R installed from the previous step.
 
         source("http://bioconductor.org/biocLite.R")
         biocLite("HMMcopy")
+
+Other tools
+-----------
+
+1. Download Picard tools.
+
+	wget -O picard-tools-1.119.zip http://sourceforge.net/projects/picard/files/latest/download?source=files
+	unzip picard-tools-1.119.zip
+	cd picard-tools-1.119
+	cp * $HOME/bin
