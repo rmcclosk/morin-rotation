@@ -1,4 +1,3 @@
-settings.R
 *.bam
 *.bai
 *.fasta
@@ -9,3 +8,8 @@ SureSelect_regions.list
 *.sample_interval_summary
 *.sample_statistics
 nohup.out
+*.pdf
+settings.conf
+settings_xhost09.conf
+settings_genesis.conf
+settings_apollo.conf

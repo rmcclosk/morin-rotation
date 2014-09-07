@@ -2,11 +2,11 @@
 
 . settings.conf
 
-OUT_DIR=$WORK_DIR/02_readlength
+OUT_DIR=$EXOME_WORK_DIR/02_readlength
 mkdir -p $OUT_DIR
 
 rm -f jobs.txt
-for BAM_FILE in $(ls $BAM_DIR/*.bam); do
+for BAM_FILE in $(ls $EXOME_BAM_DIR/*.bam); do
     OUT_FILE=$OUT_DIR/$(basename $BAM_FILE | sed s/.bam$/.tbl/)
     if [[ ! -f $OUT_FILE ]]; then
         echo "$JAVA_BIN -Xmx512M -jar $GATK_JAR \
