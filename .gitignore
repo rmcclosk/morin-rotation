@@ -12,4 +12,5 @@ nohup.out
 settings.conf
 settings_xhost09.conf
 settings_genesis.conf
-settings_apollo.conf
+qsub-logs
+jobs.txt

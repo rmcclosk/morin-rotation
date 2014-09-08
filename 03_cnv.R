@@ -5,8 +5,8 @@ library(parallel)
 
 source(file="settings.conf")
 
-coverage.dir <- file.path(EXOME_WORK_DIR, "01_coverage")
-out.dir <- file.path(EXOME_WORK_DIR, "03_cnv")
+coverage.dir <- file.path(WORK_DIR, "01_coverage")
+out.dir <- file.path(WORK_DIR, "03_cnv")
 chr.list <- paste0("chr", c(1:22, "X", "Y"))
 chr.list <- c("chr1")
 min.sens <- 0.9999

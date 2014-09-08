@@ -2,7 +2,7 @@
 
 . settings.conf
 
-OUT_DIR=$EXOME_WORK_DIR/02_readlength
+OUT_DIR=$WORK_DIR/02_readlength
 mkdir -p $OUT_DIR
 
 rm -f jobs.txt

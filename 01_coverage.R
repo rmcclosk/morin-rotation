@@ -2,7 +2,7 @@
 
 source(file="settings.conf")
 
-out.dir <- file.path(EXOME_WORK_DIR, "01_coverage")
+out.dir <- file.path(WORK_DIR, "01_coverage")
 dir.create(out.dir, showWarnings=F)
 matching <- read.table(EXOME_MATCHING, stringsAsFactors=F, fill=T, sep="\t")
 files <- c(matching$V1, matching$V2, matching$V3)
