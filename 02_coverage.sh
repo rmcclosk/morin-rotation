@@ -6,7 +6,7 @@ INDIR=$WORK_DIR/01_fixbams
 OUTDIR=$WORK_DIR/02_coverage
 mkdir -p $OUTDIR
 
-for BAM_FILE in $(ls $INDIR/*exome*.bam); do
+for BAM_FILE in $(ls $INDIR/*.bam); do
     OUTFILE_STEM=$OUTDIR/$(basename $BAM_FILE | sed s/.bam$//)
     if [[ ! -f $OUTFILE_STEM.sample_summary ]]; then
         echo "$JAVA_BIN -Xmx2048m -jar $GATK_JAR -T DepthOfCoverage -omitBaseOutput \

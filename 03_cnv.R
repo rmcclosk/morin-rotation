@@ -1,11 +1,15 @@
 #!/home/rmccloskey/bin/Rscript
 
+# Copy number analysis on EXOME data.
+# TODO: reduce duplication between here and 05_hmmcopy (parsing metadata).
+
 library(ExomeCNV)
 library(parallel)
 
 source(file="settings.conf")
 
-coverage.dir <- file.path(WORK_DIR, "01_coverage")
+bam.dir <- file.path(WORK_DIR, "00_bams")
+coverage.dir <- file.path(WORK_DIR, "02_coverage")
 out.dir <- file.path(WORK_DIR, "03_cnv")
 chr.list <- paste0("chr", c(1:22, "X", "Y"))
 chr.list <- c("chr1")
@@ -14,60 +18,69 @@ min.spec <- 0.9999
 cnv.option <- "spec"
 cnv.length <- 100
 cnv.contam <- 0.5
-ncpus <- 1
+ncpus <- 2
 
 dir.create(out.dir, showWarnings=F)
 
-# Keep only rows where at least one comparison can be made.
-matching.ncols <- max(count.fields(EXOME_MATCHING, sep="\t"))
-matching <- read.table(EXOME_MATCHING, sep="\t", fill=T, header=F,
-                       na.strings=c("", "Insufficient DNA"), 
-                       stringsAsFactors=F, col.names=1:matching.ncols)
-matching <- matching[rowSums(!is.na(matching)) > 1,]
+# Get BAM files for each sample.
+sample.data <- read.csv(EXOME_METADATA, header=T)
+prefix <- paste(sample.data$patient_id, sample.data$gsc_exome_library_id, "*.bam", sep="_")
+sample.data$bam.file <- sapply(prefix, function (x) {
+    file <- Sys.glob(file.path(bam.dir, x))
+    if (length(file) == 0) NA else file
+})
+sample.data <- sample.data[!is.na(sample.data$bam.file),]
 
-# Extract patient ID and file names.
-patient.id <- sapply(strsplit(matching[,1], " "), "[[", 1)
-matching <- data.frame(apply(matching, 2, function (col) {
-    ifelse(is.na(col), NA, sapply(strsplit(col[!is.na(col)], " "), "[[", 2))
-}), stringsAsFactors=F)
+sample.data$coverage.file <- file.path(coverage.dir, sub(".bam$", ".sample_summary", basename(sample.data$bam.file)))
+sample.data <- sample.data[file.exists(sample.data$coverage.file),]
 
-# Make a data frame with information about each bam file.
-sample.data <- data.frame(
-    patient.id=rep(patient.id, rowSums(!is.na(matching))),
-    bam.file=t(matching)[!is.na(t(matching))],
-    timepoint=((which(t(!is.na(matching)))-1) %% ncol(matching)) + 1
-)
+# Annotate which samples are normal and which are tumor.
+# Delete patients with no normal sample.
+# TODO: also annotate with pre- and post-biopsy, from the clinical csv.
+sample.data$normal <- grepl("BF", sample.data$sample_id)
+sample.data <- sample.data[order(sample.data$patient_id, -sample.data$normal),]
+normal.counts <- aggregate(normal~patient_id, sample.data, sum)
+normal.counts <- normal.counts[normal.counts$normal == 1,]
+sample.data <- merge(sample.data, normal.counts, by=c("patient_id"), suffixes=c("", ".count"))
+
+# Delete patients with only one sample.
+bam.counts <- aggregate(bam.file~patient_id, sample.data, length)
+bam.counts <- bam.counts[bam.counts$bam.file > 1,]
+sample.data <- merge(sample.data, bam.counts, by=c("patient_id"), suffixes=c("", ".count"))
+
+sample.data$patient_id <- factor(sample.data$patient_id, levels=unique(sample.data$patient_id))
 
 # Read mean coverage for each sample.
-coverage.files <- Sys.glob(file.path(coverage.dir, "*.sample_summary"))
-tmp <- data.frame(
-    coverage.file=sub(".sample_summary$", ".sample_interval_summary", basename(coverage.files)),
-    bam.file=sub(".sample_summary$", ".bam", basename(coverage.files)),
-    coverage=sapply(coverage.files, function (f) {
-        read.table(f, header=T, fill=T, sep="\t")[1,"mean"]
-    })
-)
-sample.data <- merge(sample.data, tmp)
+sample.data$coverage <- sapply(sample.data$coverage.file, function (f) {
+    read.table(f, header=T, fill=T, sep="\t")[1,"mean"]
+})
 
 # Remove patients with only one BAM file.
 # TODO: delete this when BAM file corruption issues are resolved.
-counts <- aggregate(bam.file~patient.id, sample.data, length)
-keep.patients <- subset(counts, bam.file > 1, select=c("patient.id"))
+counts <- aggregate(bam.file~patient_id, sample.data, length)
+keep.patients <- subset(counts, bam.file > 1, select=c("patient_id"))
 sample.data <- merge(sample.data, keep.patients)
-sample.data$patient.id <- factor(sample.data$patient.id, 
-                                 levels=keep.patients$patient.id)
+sample.data$patient_id <- factor(sample.data$patient_id, 
+                                 levels=keep.patients$patient_id)
 
 # Find the minimum coverage by patient and scaling factors.
-worst.coverage <- aggregate(coverage~patient.id, sample.data, min)
-sample.data <- merge(sample.data, worst.coverage, by=c("patient.id"), 
+worst.coverage <- aggregate(coverage~patient_id, sample.data, min)
+sample.data <- merge(sample.data, worst.coverage, by=c("patient_id"), 
                      suffixes=c("", ".worst"))
 sample.data$scale.factor <- sample.data$coverage.worst/sample.data$coverage
 
-sample.data <- sample.data[1:2,]
-sample.data$patient.id <- factor(sample.data$patient.id, levels=unique(sample.data$patient.id))
+sample.data$patient_id <- factor(sample.data$patient_id, levels=unique(sample.data$patient_id))
+sample.data$filename.stem <- file.path(out.dir, sample.data$patient_id, sample.data$sample_id, cnv.contam)
+. <- sapply(dirname(sample.data$filename.stem), dir.create, showWarnings=F, recursive=T)
 
+# Read in GATK coverage and scale down.
+sample.data <- sample.data[order(sample.data$patient_id, -sample.data$normal),]
+sample.data <- sample.data[1:2,] # TODO REMOVE DEBUG
+sample.data <- sample.data[!file.exists(paste0(sample.data$filename.stem, ".cnv.txt")),]
+
+sample.data$coverage.interval.file <- gsub("sample_summary$", "sample_interval_summary", sample.data$coverage.file)
 coverage <- mclapply(1:nrow(sample.data), function (i) {
-    d <- read.coverage.gatk(file.path(coverage.dir, sample.data[i, "coverage.file"]))
+    d <- read.coverage.gatk(sample.data[i, "coverage.interval.file"])
     scale.factor <- sample.data[i, "scale.factor"]
     d$coverage <- d$coverage*scale.factor
     d$average.coverage <- d$average.coverage*scale.factor
@@ -76,8 +89,8 @@ coverage <- mclapply(1:nrow(sample.data), function (i) {
 }, mc.cores=ncpus)
 names(coverage) <- sample.data$bam.file
 
-sample.data <- sample.data[order(sample.data$patient.id, sample.data$timepoint),]
-by(sample.data, sample.data$patient.id, function (x) {
+# Run ExomeCNV.
+by(sample.data, sample.data$patient_id, function (x) {
     pairs <- expand.grid(1, 2:nrow(x))
     apply(pairs, 1, function (pair) {
         bam.files <- x[pair, "bam.file"]
@@ -95,9 +108,6 @@ by(sample.data, sample.data$patient.id, function (x) {
                                   all.cnv.ls=list(eCNV), coverage.cutoff=5, 
                                   min.spec=0.99, min.sens=0.99, option="auc", 
                                   c=cnv.contam)
-        patient.id <- x[pair[1], "patient.id"]
-        timepoint <- x[pair[2], "timepoint"]
-        filename.stem <- paste0("patient", patient.id, "_timepoint", timepoint)
-        write.output(eCNV, cnv, file.path(out.dir, filename.stem))
+        write.output(eCNV, cnv, x[pair[2], "filename.stem"])
     })
 })
