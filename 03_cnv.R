@@ -1,4 +1,4 @@
-#!/home/rmccloskey/bin/Rscript
+#!/gsc/software/linux-x86_64-centos5/R-3.0.2/bin/Rscript
 
 # Copy number analysis on EXOME data.
 # TODO: reduce duplication between here and 05_hmmcopy (parsing metadata).
@@ -6,19 +6,18 @@
 library(ExomeCNV)
 library(parallel)
 
-source(file="settings.conf")
+source(file="/extscratch/morinlab/shared/rmccloskey/settings.conf")
 
 bam.dir <- file.path(WORK_DIR, "00_bams")
 coverage.dir <- file.path(WORK_DIR, "02_coverage")
 out.dir <- file.path(WORK_DIR, "03_cnv")
 chr.list <- paste0("chr", c(1:22, "X", "Y"))
-chr.list <- c("chr1")
 min.sens <- 0.9999
 min.spec <- 0.9999
 cnv.option <- "spec"
 cnv.length <- 100
-cnv.contam <- 0.5
-ncpus <- 2
+cnv.contam <- as.numeric(commandArgs(trailingOnly=T)[1])
+ncpus <- 1
 
 dir.create(out.dir, showWarnings=F)
 
@@ -43,12 +42,21 @@ normal.counts <- aggregate(normal~patient_id, sample.data, sum)
 normal.counts <- normal.counts[normal.counts$normal == 1,]
 sample.data <- merge(sample.data, normal.counts, by=c("patient_id"), suffixes=c("", ".count"))
 
+sample.data$patient_id <- factor(sample.data$patient_id, levels=unique(sample.data$patient_id))
+sample.data$filename.stem <- file.path(out.dir, sample.data$patient_id, sample.data$sample_id, cnv.contam)
+
+# Remove late time points which have already been analysed.
+sample.data <- sample.data[!file.exists(paste0(sample.data$filename.stem, ".cnv.txt")),]
+
+if (all(sample.data$normal)) {
+	cat("Nothing to do\n", stderr())
+	quit()
+}
+
 # Delete patients with only one sample.
 bam.counts <- aggregate(bam.file~patient_id, sample.data, length)
 bam.counts <- bam.counts[bam.counts$bam.file > 1,]
 sample.data <- merge(sample.data, bam.counts, by=c("patient_id"), suffixes=c("", ".count"))
-
-sample.data$patient_id <- factor(sample.data$patient_id, levels=unique(sample.data$patient_id))
 
 # Read mean coverage for each sample.
 sample.data$coverage <- sapply(sample.data$coverage.file, function (f) {
@@ -56,7 +64,6 @@ sample.data$coverage <- sapply(sample.data$coverage.file, function (f) {
 })
 
 # Remove patients with only one BAM file.
-# TODO: delete this when BAM file corruption issues are resolved.
 counts <- aggregate(bam.file~patient_id, sample.data, length)
 keep.patients <- subset(counts, bam.file > 1, select=c("patient_id"))
 sample.data <- merge(sample.data, keep.patients)
@@ -70,13 +77,10 @@ sample.data <- merge(sample.data, worst.coverage, by=c("patient_id"),
 sample.data$scale.factor <- sample.data$coverage.worst/sample.data$coverage
 
 sample.data$patient_id <- factor(sample.data$patient_id, levels=unique(sample.data$patient_id))
-sample.data$filename.stem <- file.path(out.dir, sample.data$patient_id, sample.data$sample_id, cnv.contam)
 . <- sapply(dirname(sample.data$filename.stem), dir.create, showWarnings=F, recursive=T)
 
 # Read in GATK coverage and scale down.
 sample.data <- sample.data[order(sample.data$patient_id, -sample.data$normal),]
-sample.data <- sample.data[1:2,] # TODO REMOVE DEBUG
-sample.data <- sample.data[!file.exists(paste0(sample.data$filename.stem, ".cnv.txt")),]
 
 sample.data$coverage.interval.file <- gsub("sample_summary$", "sample_interval_summary", sample.data$coverage.file)
 coverage <- mclapply(1:nrow(sample.data), function (i) {
@@ -90,7 +94,8 @@ coverage <- mclapply(1:nrow(sample.data), function (i) {
 names(coverage) <- sample.data$bam.file
 
 # Run ExomeCNV.
-by(sample.data, sample.data$patient_id, function (x) {
+options(bitmapType="cairo")
+. <- by(sample.data, sample.data$patient_id, function (x) {
     pairs <- expand.grid(1, 2:nrow(x))
     apply(pairs, 1, function (pair) {
         bam.files <- x[pair, "bam.file"]
