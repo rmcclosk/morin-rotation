@@ -2,11 +2,6 @@
 *.bai
 *.fasta
 *.jar
-SureSelect_regions.list
-*.sample_summary
-*.sample_interval_statistics
-*.sample_interval_summary
-*.sample_statistics
 nohup.out
 *.pdf
 settings.conf
@@ -14,3 +9,5 @@ settings_xhost09.conf
 settings_genesis.conf
 qsub-logs
 jobs.txt
+exome_metadata.csv
+genome_metadata.csv
