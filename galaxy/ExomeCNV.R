@@ -4,17 +4,21 @@
 library(getopt)
 
 spec <- matrix(c(
-    "tumor.bam", "t", 1, "character",
-    "normal.bam", "n", 1, "character",
-    "read.length", "l", 1, "integer",
-    "admixture.rate", "a", 1, "double",
-    "chr.list", "c", 1, "character",
-    "sens.exon", "s", 1, "double",
-    "spec.exon", "p", 1, "double",
-    "opt.exon", "o", 1, "character",
-    "sens.segment", "r", 1, "double",
-    "spec.segment", "r", 1, "double",
-    "opt.segment", "r", 1, "character"
+    "tumor.bam", "a", 1, "character",
+    "tumor.coverage", "b", 1, "character",
+    "tumor.interval.coverage", "c", 1, "character",
+    "normal.bam", "d", 1, "character",
+    "normal.coverage", "e", 1, "character",
+    "normal.interval.coverage", "f", 1, "character",
+    "read.length", "g", 1, "integer",
+    "admixture.rate", "h", 1, "double",
+    "chr.list", "i", 1, "character",
+    "sens.exon", "j", 1, "double",
+    "spec.exon", "k", 1, "double",
+    "opt.exon", "l", 1, "character",
+    "sens.segment", "m", 1, "double",
+    "spec.segment", "n", 1, "double",
+    "opt.segment", "o", 1, "character"
 ), byrow=TRUE, ncol=4)
 opt <- getopt(spec)
 
@@ -27,6 +31,12 @@ if (!is.null(opt$help)) {
 # Enforce required arguments.
 if (is.null(opt$tumor.bam) | is.null(opt$normal.bam)) {
     cat("You must specify a tumor and normal bam file\n", file=stderr())
+}
+if (is.null(opt$tumor.coverage) | is.null(opt$normal.coverage)) {
+    cat("You must specify coverage summaries for the tumor and normal samples\n", file=stderr())
+}
+if (is.null(opt$tumor.interval.coverage) | is.null(opt$normal.interval.coverage)) {
+    cat("You must specify interval coverage for the tumor and normal samples\n", file=stderr())
 }
 if (is.null(opt$read.length)) {
     cat("You must specify the average read length\n", file=stderr())
@@ -59,22 +69,7 @@ if ((opt$opt.exon == "auc" & opt$sens.exon != opt$spec.exon) |
                   "specificity when the option \"auc\" is used."))
 }
 
-quit()
-cnv.length <- 100
-cnv.contam <- as.numeric(commandArgs(trailingOnly=T)[1])
-ncpus <- 1
-
-dir.create(out.dir, showWarnings=F)
-
 # Get BAM files for each sample.
-sample.data <- read.csv(EXOME_METADATA, header=T)
-prefix <- paste(sample.data$patient_id, sample.data$gsc_exome_library_id, "*.bam", sep="_")
-sample.data$bam.file <- sapply(prefix, function (x) {
-    file <- Sys.glob(file.path(bam.dir, x))
-    if (length(file) == 0) NA else file
-})
-sample.data <- sample.data[!is.na(sample.data$bam.file),]
-
 sample.data$coverage.file <- file.path(coverage.dir, sub(".bam$", ".sample_summary", basename(sample.data$bam.file)))
 sample.data <- sample.data[file.exists(sample.data$coverage.file),]
 
