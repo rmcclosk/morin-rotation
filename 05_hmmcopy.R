@@ -44,14 +44,16 @@ sample.data$filename.stem <- file.path(out.dir, sample.data$patient_id, sample.d
 . <- Sys.setlocale('LC_ALL','C')
 
 write.output <- function (stem, copy, segments=NULL, params=NULL) {
-    png(paste0(stem, "_bias.png"))
+    pdf(paste0(stem, "_bias.pdf"))
     par(cex.main = 0.7, cex.lab = 0.7, cex.axis = 0.7, mar = c(4, 4, 2, 0.5))
     plotBias(copy, pch = 20, cex = 0.5)
     dev.off()
 
-    png(paste0(stem, "_correction.png"))
+    pdf(paste0(stem, "_correction.pdf"))
     par(cex.main = 0.7, cex.lab = 0.7, cex.axis = 0.7, mar = c(4, 4, 2, 0.5))
-    plotCorrection(copy, pch=".")
+    sapply(c(1:22, "X", "Y"), function (chr) {
+        tryCatch(plotCorrection(copy, chr=chr, pch="."), error=identity)
+    })
     dev.off()
 
     if (is.null(segments)) return()
@@ -62,18 +64,22 @@ write.output <- function (stem, copy, segments=NULL, params=NULL) {
 
     rangedDataToSeg(copy, file=paste0(stem, ".seg"))
 
-    png(paste0(stem, "_params.png"))
+    pdf(paste0(stem, "_params.pdf"))
     plotParam(segments, params)
     dev.off()
 
-    png(paste0(stem, "_segments.png"))
+    pdf(paste0(stem, "_segments.pdf"))
     par(cex.main = 0.5, cex.lab = 0.5, cex.axis = 0.5, mar = c(2, 1.5, 0, 0),
         mgp = c(1, 0.5, 0))
-    cols <- stateCols()
-    plotSegments(copy, segments, pch = ".", ylab = "Tumour Copy Number", 
-                 xlab = "Chromosome Position")
-    legend("topleft", c("HOMD", "HETD", "NEUT", "GAIN", "AMPL", "HLAMP"),
-           fill = cols, horiz = TRUE, bty = "n", cex = 0.5)
+    sapply(c(1:22, "X", "Y"), function (chr) {
+        cols <- stateCols()
+        plotSegments(copy, segments, chr=chr, pch = ".", 
+                     ylab = "Tumour Copy Number", 
+                     xlab = paste("Chromosome", chr, "Position"))
+        sapply(seq(-0.9, 0.9, 0.1), function (y) abline(h=y))
+        legend("topleft", c("HOMD", "HETD", "NEUT", "GAIN", "AMPL", "HLAMP"),
+               fill = cols, horiz = TRUE, bty = "n", cex = 0.5)
+    })
     dev.off()
 }
 
@@ -81,7 +87,7 @@ write.output <- function (stem, copy, segments=NULL, params=NULL) {
 options(bitmapType="cairo")
 
 sample.data <- sample.data[order(sample.data$patient_id, -sample.data$normal),]
-mclapply(sample.data$patient_id, function (p) {
+mclapply(levels(sample.data$patient_id), function (p) {
     d <- subset(sample.data, patient_id == p)
     norm.uncorrected.reads <- wigsToRangedData(d[1,"wig.file"], GC_FILE, MAPPABILITY_FILE)
     norm.corrected.copy <- correctReadcount(norm.uncorrected.reads)
