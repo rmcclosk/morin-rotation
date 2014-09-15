@@ -7,7 +7,7 @@ source(file="/extscratch/morinlab/shared/rmccloskey/settings.conf")
 
 out.dir <- file.path(WORK_DIR, "05_hmmcopy")
 wig.dir <- file.path(WORK_DIR, "04_readcounts")
-ncpus <- 1
+ncpus <- 2
 
 dir.create(out.dir, showWarnings=F)
 
@@ -57,10 +57,10 @@ write.output <- function (stem, copy, segments=NULL, params=NULL) {
     dev.off()
 
     if (is.null(segments)) return()
-    dput(segments, file=paste0(stem, "_segments.dat"))
+    write.table(segments$seg, file=paste0(stem, "_segments.dat"), col.names=T, row.names=F)
 
     if (is.null(params)) params <- HMMsegment(copy, getparam=T)
-    dput(params, file=paste0(stem, "_params.dat"))
+    write.table(params, file=paste0(stem, "_params.dat"), col.names=T, row.names=F)
 
     rangedDataToSeg(copy, file=paste0(stem, ".seg"))
 
@@ -97,7 +97,12 @@ mclapply(levels(sample.data$patient_id), function (p) {
         tum.uncorrected.reads <- wigsToRangedData(d[i,"wig.file"], GC_FILE, MAPPABILITY_FILE)
         tum.corrected.copy <- correctReadcount(tum.uncorrected.reads)
         tum.corrected.copy$copy <- tum.corrected.copy$copy - norm.corrected.copy$copy
-        segments <- HMMsegment(tum.corrected.copy)
-        write.output(d[i,"filename.stem"], tum.corrected.copy, segments=segments)
+
+        param <- HMMsegment(tum.corrected.copy, getparam=T)
+        param$e <- 0.999999999999999
+        param$strength <- 1e+30
+
+        segments <- HMMsegment(tum.corrected.copy, param)
+        write.output(d[i,"filename.stem"], tum.corrected.copy, segments=segments, params=param)
     })
 }, mc.cores=ncpus)
