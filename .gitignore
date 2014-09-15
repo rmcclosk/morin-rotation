@@ -5,9 +5,8 @@
 nohup.out
 *.pdf
 settings.conf
-settings_xhost09.conf
+settings_xhosts.conf
 settings_genesis.conf
-qsub-logs
 jobs.txt
 exome_metadata.csv
 genome_metadata.csv

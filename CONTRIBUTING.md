@@ -92,6 +92,23 @@ You should already have R installed from the previous step.
         source("http://bioconductor.org/biocLite.R")
         biocLite("HMMcopy")
 
+Setting up Lumpy
+----------------
+
+1. Install yaha.
+
+        wget http://faculty.virginia.edu/irahall/support/yaha/YAHA.0.1.82.tar.gz
+        tar xf YAHA.0.1.82.tar.gz
+        mv yaha $HOME/bin
+
+2. Install Lumpy.
+
+        wget -O lumpy-sv-0.2.7.tar.gz https://github.com/arq5x/lumpy-sv/releases/download/0.2.7/lumpy-sv-0.2.7.tar.gz
+        tar xf lumpy-sv-0.2.7.tar.gz
+        cd lumpy-sv-0.2.7
+        make
+        cp scripts/* $HOME/bin
+
 Other tools
 -----------
 
