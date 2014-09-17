@@ -36,7 +36,7 @@ sample.data <- sample.data[file.exists(sample.data$coverage.file),]
 # Annotate which samples are normal and which are tumor.
 # Delete patients with no normal sample.
 # TODO: also annotate with pre- and post-biopsy, from the clinical csv.
-sample.data$normal <- grepl("BF", sample.data$sample_id)
+sample.data$normal <- grepl("(BF|WB)", sample.data$sample_id)
 sample.data <- sample.data[order(sample.data$patient_id, -sample.data$normal),]
 normal.counts <- aggregate(normal~patient_id, sample.data, sum)
 normal.counts <- normal.counts[normal.counts$normal == 1,]
