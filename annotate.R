@@ -4,11 +4,16 @@ source(file="settings.conf")
 
 purity <- read.csv(EXOME_PURITY, header=T, fill=T, stringsAsFactors=F)
 
-sample <- purity$Sample.ID[1]
-patient.id <- paste0("01-", strsplit(sample, "-")[[1]][3])
+colnames(purity)[1] <- "sample"
+purity$patient.id <- paste0("01-", strsplit(purity$sample, "-")[[1]][3])
+purity
     
-exome.dir <- file.path(WORK_DIR, "03_cnv", patient.id, sample)
-genome.dir <- file.path(WORK_DIR, "05_hmmcopy", patient.id, sample)
+exome.dir <- file.path(WORK_DIR, "03_cnv")
+genome.dir <- file.path(WORK_DIR, "05_hmmcopy")
+
+sapply(
+
+quit()
 
 exome.seg <- do.call(rbind, lapply(seq(0.1, 0.85, 0.05), function (admixture.rate) {
     exome.file <- file.path(exome.dir, 
