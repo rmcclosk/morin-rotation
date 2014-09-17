@@ -1,4 +1,4 @@
-#!/gsc/software/linux-x86_64-centos5/R-3.0.2/bin/Rscript
+#!/usr/bin/env Rscript
 
 # Copy number analysis on EXOME data.
 # TODO: reduce duplication between here and 05_hmmcopy (parsing metadata).

@@ -10,3 +10,4 @@ settings_genesis.conf
 jobs.txt
 exome_metadata.csv
 genome_metadata.csv
+qsub-logs

@@ -4,6 +4,7 @@ source(file="settings.conf")
 
 patient.id <- "01-007"
 sample <- "01-2-007-4"
+
 exome.dir <- file.path(WORK_DIR, "03_cnv", patient.id, sample)
 genome.dir <- file.path(WORK_DIR, "05_hmmcopy", patient.id, sample)
 
@@ -17,6 +18,8 @@ exome.seg$chr <- factor(sub("chr", "", exome.seg$chr))
 genome.file <- file.path(genome.dir, "1409141605_segments.dat")
 genome.seg <- read.table(genome.file, header=T)
 genome.seg$copy.number <- genome.seg$state - 1
+
+quit()
 
 pdf(paste0(patient.id, "_", sample, ".pdf"), width=9, height=9)
 par(mfrow=c(2, 2), xaxs="i")
