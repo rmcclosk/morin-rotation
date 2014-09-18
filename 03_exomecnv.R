@@ -6,9 +6,9 @@
 library(ExomeCNV)
 library(parallel)
 
-source(file="/extscratch/morinlab/shared/rmccloskey/settings.conf")
+source(file="/home/rmccloskey/morin-rotation/settings.conf")
 
-bam.dir <- file.path(WORK_DIR, "00_bams")
+bam.dir <- file.path(WORK_DIR, "01_fixbams")
 coverage.dir <- file.path(WORK_DIR, "02_coverage")
 out.dir <- file.path(WORK_DIR, "03_cnv")
 chr.list <- paste0("chr", c(1:22, "X", "Y"))
@@ -17,26 +17,38 @@ min.spec <- 0.9999
 cnv.option <- "spec"
 cnv.length <- 100
 cnv.contam <- as.numeric(commandArgs(trailingOnly=T)[1])
-ncpus <- 1
+ncpus <- 4
 
 dir.create(out.dir, showWarnings=F)
 
 # Get BAM files for each sample.
-sample.data <- read.csv(EXOME_METADATA, header=T)
-prefix <- paste(sample.data$patient_id, sample.data$gsc_exome_library_id, "*.bam", sep="_")
-sample.data$bam.file <- sapply(prefix, function (x) {
-    file <- Sys.glob(file.path(bam.dir, x))
-    if (length(file) == 0) NA else file
-})
-sample.data <- sample.data[!is.na(sample.data$bam.file),]
+if (grepl("colorectal", WORK_DIR)) {
+    sample.data <- read.csv(EXOME_METADATA, header=T)
+    prefix <- paste(sample.data$patient_id, sample.data$gsc_exome_library_id, "*.bam", sep="_")
+    sample.data$bam.file <- sapply(prefix, function (x) {
+        file <- Sys.glob(file.path(bam.dir, x))
+        if (length(file) == 0) NA else file
+    })
+    sample.data <- sample.data[!is.na(sample.data$bam.file),]
+    sample.data$normal <- grepl("(BF|WB)", sample.data$sample_id)
+} else if (grepl("dlbcl", WORK_DIR)) {
+    sample.data <- data.frame(bam.file=Sys.glob(file.path(bam.dir, "*.bam")))
+    sample.data$bam.file <- as.character(sample.data$bam.file)
+
+    match <- regexpr("^(PT)?[0-9]+", basename(sample.data$bam.file))
+    sample.data$patient_id <- regmatches(basename(sample.data$bam.file), match)
+
+    match <- regexpr("(T2|N|GL|T)", sub("PT", "", basename(sample.data$bam.file)))
+    sample.data$sample <- regmatches(sub("PT", "", basename(sample.data$bam.file)), match)
+
+    sample.data$normal <- sample.data$sample %in% c("GL", "N")
+}
 
 sample.data$coverage.file <- file.path(coverage.dir, sub(".bam$", ".sample_summary", basename(sample.data$bam.file)))
 sample.data <- sample.data[file.exists(sample.data$coverage.file),]
 
-# Annotate which samples are normal and which are tumor.
 # Delete patients with no normal sample.
 # TODO: also annotate with pre- and post-biopsy, from the clinical csv.
-sample.data$normal <- grepl("(BF|WB)", sample.data$sample_id)
 sample.data <- sample.data[order(sample.data$patient_id, -sample.data$normal),]
 normal.counts <- aggregate(normal~patient_id, sample.data, sum)
 normal.counts <- normal.counts[normal.counts$normal == 1,]
