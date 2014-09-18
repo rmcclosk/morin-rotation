@@ -114,7 +114,7 @@ Other tools
 
 1. Download Picard tools.
 
-	wget -O picard-tools-1.119.zip http://sourceforge.net/projects/picard/files/latest/download?source=files
-	unzip picard-tools-1.119.zip
-	cd picard-tools-1.119
-	cp * $HOME/bin
+        wget -O picard-tools-1.119.zip http://sourceforge.net/projects/picard/files/latest/download?source=files
+        unzip picard-tools-1.119.zip
+        cd picard-tools-1.119
+        cp * $HOME/bin
