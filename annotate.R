@@ -70,8 +70,22 @@ report.purity <- (sample.data$X..tumor/100) *
 sample.data$report.purity <- ifelse(is.na(report.purity), sample.data$X..Tumor/100, report.purity)
 sample.data <- sample.data[,c("patient.id", "sample", "report.purity")]
 
+chr.data <- read.table(CYTO_BAND, header=T)
+chr.data[chr.data$chr=="chr1",]
+quit()
+                       col.names=c("chr", "start", "end", "locus", "g"))
+chr.data$chr <- factor(sub("chr", "", chr.data$chr))
+chr.data$locus <- sub("[.].*", "", chr.data$locus)
+
+locus.starts <- aggregate(start~chr+locus, chr.data, min)
+locus.ends <- aggregate(end~chr+locus, chr.data, max)
+chr.data <- merge(locus.starts, locus.ends)
+
 exome.dir <- file.path(WORK_DIR, "03_cnv")
 genome.dir <- file.path(WORK_DIR, "05_hmmcopy")
+
+# DEBUG
+sample.data <- sample.data[1,]
 
 exome.seg <- do.call(rbind, mapply(read.all.exome, 
                                    sample.data$sample, 
@@ -84,9 +98,9 @@ genome.seg <- do.call(rbind, mapply(read.all.genome,
                                     genome.dir, 
                                     SIMPLIFY=FALSE))
 exome.seg <- exome.seg[exome.seg$sample %in% genome.seg$sample,]
-
 first <- T
-# by chromosome and purity
+
+# group by chromosome, sample, purity
 . <- by(exome.seg, list(exome.seg$sample, exome.seg$chr, exome.seg$purity), function (exome.chr.seg) {
     by.chr <- exome.chr.seg[1, "chr"]
     by.purity <- exome.chr.seg[1, "purity"]
@@ -95,6 +109,26 @@ first <- T
     
     cat("Processing sample", by.sample, ", chromosome", by.chr, ", purity", by.purity, "...")
 
+    genome.chr.seg <- subset(genome.seg, chr==by.chr & sample==by.sample)
+    by.chr.data <- subset(chr.data, chr==by.chr)
+    bounds <- sort(unique(c(exome.chr.seg$start, exome.chr.seg$end+1, 
+                            genome.chr.seg$start, genome.chr.seg$end+1,
+                            by.chr.data$start+1, by.chr.data$end+1)))
+    bounds <- bounds[bounds >= min(exome.chr.seg$start) & bounds <= max(exome.chr.seg$end)]
+
+    d <- do.call(rbind, mapply(function (seg.start, seg.end) {
+        exome.subset <- subset(exome.chr.seg, start <= seg.start & end >= seg.end)
+        if (nrow(exome.subset) == 0) return (NULL)
+        genome.subset <- subset(genome.chr.seg, start <= seg.start & end >= seg.end-1)
+        chr.data.subset <- subset(by.chr.data, start <= seg.start & end >= seg.end-1)
+        if (nrow(chr.data.subset) == 0) { cat("\n", seg.start, seg.end, "\n"); print(by.chr.data) }
+        c(exome.copy=exome.subset[1,"copy.number"],
+          genome.copy=genome.subset[1,"copy.number"],
+          locus=chr.data.subset[1,"locus"])
+    }, bounds[-length(bounds)], bounds[-1], SIMPLIFY=F))
+
+    print(d)
+    quit()
     # loop through segments (rows)
     d <- do.call(rbind, lapply(1:nrow(exome.chr.seg), function (i) {
         exome.start <- exome.chr.seg[i,"start"]
