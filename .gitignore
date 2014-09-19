@@ -2,12 +2,12 @@
 *.bai
 *.fasta
 *.jar
-nohup.out
 *.pdf
+*.dat
+*.csv
+nohup.out
 settings.conf
 settings_xhosts.conf
 settings_genesis.conf
 jobs.txt
-exome_metadata.csv
-genome_metadata.csv
 qsub-logs
