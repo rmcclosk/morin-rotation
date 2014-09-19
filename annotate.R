@@ -2,38 +2,98 @@
 
 source(file="settings.conf")
 
-purity <- read.csv(EXOME_PURITY, header=T, fill=T, stringsAsFactors=F)
+WORK_DIR <- sub("dlbcl", "colorectal", WORK_DIR)
 
-colnames(purity)[1] <- "sample"
-purity$patient.id <- paste0("01-", strsplit(purity$sample, "-")[[1]][3])
-purity
-    
-exome.dir <- file.path(WORK_DIR, "03_cnv")
-genome.dir <- file.path(WORK_DIR, "05_hmmcopy")
+###############################################################################
+# Functions to read and process data files
+###############################################################################
 
-sapply(
-
-quit()
-
-exome.seg <- do.call(rbind, lapply(seq(0.1, 0.85, 0.05), function (admixture.rate) {
-    exome.file <- file.path(exome.dir, 
-                            paste0(admixture.rate, ".segment.copynumber.txt"))
-    d <- read.table(exome.file, 
+# Read a particular exome segments file.
+read.exome.segments <- function (file.path) {
+    d <- read.table(file.path,
                     col.names=c("chr", "start", "end", "copy.number"),
                     colClasses=c("character", rep("numeric", 3)))
     d$chr <- factor(sub("chr", "", d$chr))
+    admixture.rate <- as.numeric(sub(".segment.copynumber.txt", "", 
+                                     basename(file.path)))
     d$purity <- 1-admixture.rate
     d
-}))
+}
 
-genome.file <- file.path(genome.dir, "1409141605_segments.dat")
-genome.seg <- read.table(genome.file, header=T)
-genome.seg$copy.number <- genome.seg$state - 1
+# Read all exome segments files for a particular patient/sample.
+read.all.exome <- function (sample, patient.id, exome.dir) {
+    cat("Reading exome segments for sample", sample, "... ")
+    seg.dir <- file.path(exome.dir, patient.id, sample)
+    seg.files <- Sys.glob(file.path(seg.dir, "*segment.copynumber.txt"))
+    d <- do.call(rbind, lapply(seg.files, read.exome.segments))
+    d$patient.id <- patient.id
+    d$sample <- sample
+    cat("done\n")
+    d
+}
 
+# Read a particular genome segments file.
+read.genome.segments <- function (file.path) {
+    d <- read.table(file.path, header=T)
+    d$copy.number <- d$state - 1
+    d <- d[,c("chr", "start", "end", "copy.number")]
+}
+
+# Read all genome segments files for a particular patient/sample.
+read.all.genome <- function (sample, patient.id, genome.dir) {
+    cat("Reading genome segments for sample", sample, "... ")
+    seg.dir <- file.path(genome.dir, patient.id)
+    seg.file <- file.path(seg.dir, paste0(sample, "_segments.dat"))
+    if (!file.exists(seg.file)) {
+        cat("none found\n")
+        return (NULL)
+    }
+    d <- read.genome.segments(seg.file)
+    d$patient.id <- patient.id
+    d$sample <- sample
+    cat("done\n")
+    d
+}
+
+###############################################################################
+# Main
+###############################################################################
+
+# Read in sample annotations
+sample.data <- read.csv(EXOME_PURITY, header=T, fill=T, stringsAsFactors=F)
+colnames(sample.data)[1] <- "sample"
+sample.data <- sample.data[!sample.data$sample %in% c("HT 29", "R3"),]
+
+sample.data$patient.id <- paste0("01-", sapply(strsplit(sample.data$sample, "-"), "[[", 3))
+report.purity <- (sample.data$X..tumor/100) *
+                 (sample.data$X..viable.neoplastic.cells/100 + sample.data$X..necrosis/100)
+sample.data$report.purity <- ifelse(is.na(report.purity), sample.data$X..Tumor/100, report.purity)
+sample.data <- sample.data[,c("patient.id", "sample", "report.purity")]
+
+exome.dir <- file.path(WORK_DIR, "03_cnv")
+genome.dir <- file.path(WORK_DIR, "05_hmmcopy")
+
+exome.seg <- do.call(rbind, mapply(read.all.exome, 
+                                   sample.data$sample, 
+                                   sample.data$patient.id, 
+                                   exome.dir, 
+                                   SIMPLIFY=FALSE))
+genome.seg <- do.call(rbind, mapply(read.all.genome, 
+                                    sample.data$sample, 
+                                    sample.data$patient.id, 
+                                    genome.dir, 
+                                    SIMPLIFY=FALSE))
+exome.seg <- exome.seg[exome.seg$sample %in% genome.seg$sample,]
+
+first <- T
 # by chromosome and purity
-all.seg <- do.call(rbind, by(exome.seg, list(exome.seg$chr, exome.seg$purity), function (exome.chr.seg) {
+. <- by(exome.seg, list(exome.seg$sample, exome.seg$chr, exome.seg$purity), function (exome.chr.seg) {
     by.chr <- exome.chr.seg[1, "chr"]
     by.purity <- exome.chr.seg[1, "purity"]
+    by.sample <- exome.chr.seg[1, "sample"]
+    by.patient.id <- exome.chr.seg[1, "patient.id"]
+    
+    cat("Processing sample", by.sample, ", chromosome", by.chr, ", purity", by.purity, "...")
 
     # loop through segments (rows)
     d <- do.call(rbind, lapply(1:nrow(exome.chr.seg), function (i) {
@@ -42,8 +102,8 @@ all.seg <- do.call(rbind, by(exome.seg, list(exome.seg$chr, exome.seg$purity), f
         exome.copy <- exome.chr.seg[i, "copy.number"]
         
         # Find genome intervals overlapping this exome interval.
-        overlap <- subset(genome.seg, 
-                          chr==by.chr & start <= exome.end & end >= exome.start)
+        overlap <- subset(genome.seg, sample==by.sample & chr==by.chr & 
+                          start <= exome.end & end >= exome.start)
     
         # loop through overlapping genome segments
         do.call(rbind, lapply(1:nrow(overlap), function (j) {
@@ -59,15 +119,14 @@ all.seg <- do.call(rbind, by(exome.seg, list(exome.seg$chr, exome.seg$purity), f
     d <- as.data.frame(d)
     d$purity <- by.purity
     d$chr <- by.chr
-    d
-}, simplify=F))
-
-write.table(all.seg, file="annotations.dat", row.names=F, col.names=T, quote=F)
-
-
-
-
-
-
-
-
+    d$patient.id <- by.patient.id
+    d$sample <- by.sample
+    d$report.purity <- sample.data[sample.data$sample == by.sample,"report.purity"]
+    cat(" done\n")
+    if (first) {
+        write.table(d, file="annotations.dat", col.names=T, row.names=F, quote=F)
+        first <<- F
+    } else {
+        write.table(d, file="annotations.dat", append=T, row.names=F, col.names=F, quote=F)
+    }
+})
