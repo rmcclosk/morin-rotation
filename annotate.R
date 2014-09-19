@@ -70,9 +70,7 @@ report.purity <- (sample.data$X..tumor/100) *
 sample.data$report.purity <- ifelse(is.na(report.purity), sample.data$X..Tumor/100, report.purity)
 sample.data <- sample.data[,c("patient.id", "sample", "report.purity")]
 
-chr.data <- read.table(CYTO_BAND, header=T)
-chr.data[chr.data$chr=="chr1",]
-quit()
+chr.data <- read.table(CYTO_BAND, header=F,
                        col.names=c("chr", "start", "end", "locus", "g"))
 chr.data$chr <- factor(sub("chr", "", chr.data$chr))
 chr.data$locus <- sub("[.].*", "", chr.data$locus)
@@ -126,31 +124,7 @@ first <- T
           genome.copy=genome.subset[1,"copy.number"],
           locus=chr.data.subset[1,"locus"])
     }, bounds[-length(bounds)], bounds[-1], SIMPLIFY=F))
-
-    print(d)
-    quit()
-    # loop through segments (rows)
-    d <- do.call(rbind, lapply(1:nrow(exome.chr.seg), function (i) {
-        exome.start <- exome.chr.seg[i,"start"]
-        exome.end <- exome.chr.seg[i,"end"]
-        exome.copy <- exome.chr.seg[i, "copy.number"]
-        
-        # Find genome intervals overlapping this exome interval.
-        overlap <- subset(genome.seg, sample==by.sample & chr==by.chr & 
-                          start <= exome.end & end >= exome.start)
-    
-        # loop through overlapping genome segments
-        do.call(rbind, lapply(1:nrow(overlap), function (j) {
-            genome.start <- overlap[j,"start"]
-            genome.end <- overlap[j,"end"]
-            genome.copy <- overlap[j, "copy.number"]
             
-            start <- ifelse(genome.start <= exome.start, exome.start, genome.start)
-            end <- ifelse(genome.end >= exome.end, exome.end, genome.end)
-            c(start=start, end=end, genome.copy=genome.copy, exome.copy=exome.copy)
-        }))
-    }))
-    d <- as.data.frame(d)
     d$purity <- by.purity
     d$chr <- by.chr
     d$patient.id <- by.patient.id
