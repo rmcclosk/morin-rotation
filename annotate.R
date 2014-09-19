@@ -65,10 +65,10 @@ colnames(sample.data)[1] <- "sample"
 sample.data <- sample.data[!sample.data$sample %in% c("HT 29", "R3"),]
 
 sample.data$patient.id <- paste0("01-", sapply(strsplit(sample.data$sample, "-"), "[[", 3))
-sample.data$purity <- ifelse(is.na(sample.data$X..viable.neoplastic.cells),
-                             sample.data$X..Tumor,
-                             sample.data$X..viable.neoplastic.cells)
-sample.data <- sample.data[,c("patient.id", "sample", "purity")]
+report.purity <- (sample.data$X..tumor/100) *
+                 (sample.data$X..viable.neoplastic.cells/100 + sample.data$X..necrosis/100)
+sample.data$report.purity <- ifelse(is.na(report.purity), sample.data$X..Tumor/100, report.purity)
+sample.data <- sample.data[,c("patient.id", "sample", "report.purity")]
 
 exome.dir <- file.path(WORK_DIR, "03_cnv")
 genome.dir <- file.path(WORK_DIR, "05_hmmcopy")
@@ -121,6 +121,7 @@ first <- T
     d$chr <- by.chr
     d$patient.id <- by.patient.id
     d$sample <- by.sample
+    d$report.purity <- sample.data[sample.data$sample == by.sample,"report.purity"]
     cat(" done\n")
     if (first) {
         write.table(d, file="annotations.dat", col.names=T, row.names=F, quote=F)
