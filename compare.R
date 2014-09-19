@@ -1,25 +1,31 @@
-#!/home/rmccloskey/bin/Rscript
+#!/usr/bin/env Rscript
 
 source(file="settings.conf")
 
-patient.id <- "01-007"
-sample <- "01-2-007-4"
+sample.data <- read.csv("BC Genome Profiling-HQC.csv", header=T, fill=T, stringsAsFactors=F)
+sample.data$purity <- (sample.data$X..tumor/100) * 
+                      ((sample.data$X..viable.neoplastic.cells/100) +
+                       (sample.data$X..necrosis/100))
+sample.data$purity <- ifelse(is.na(sample.data$purity), 
+                             sample.data$X..Tumor/100, 
+                             sample.data$purity)
+sample.data <- sample.data[,c("Sample.ID", "purity")]
+colnames(sample.data) <- c("sample", "report.purity")
+sample.data <- sample.data[grepl("^01", sample.data$sample),]
+sample.data$patient.id <- paste0("01-", sapply(strsplit(sample.data$sample, "-"), "[[", 3))
+sample.data$admixture.rate <- sub(".0$", "", floor((1-sample.data$report.purity)/0.05)*0.05)
 
-exome.dir <- file.path(WORK_DIR, "03_cnv", patient.id, sample)
-genome.dir <- file.path(WORK_DIR, "05_hmmcopy", patient.id, sample)
+seg.data <- read.table("annotations.dat", header=T)
 
-admixture.rate <- 0.3
-exome.file <- file.path(exome.dir, 
-                        paste0(admixture.rate, ".segment.copynumber.txt"))
-exome.seg <- read.table(exome.file)
-colnames(exome.seg) <- c("chr", "start", "end", "copy.number")
-exome.seg$chr <- factor(sub("chr", "", exome.seg$chr))
+quit()
+
+apply(sample.data, 1, function (row) {
+
+    exome.seg <- read.table(exome.file)
 
 genome.file <- file.path(genome.dir, "1409141605_segments.dat")
 genome.seg <- read.table(genome.file, header=T)
 genome.seg$copy.number <- genome.seg$state - 1
-
-quit()
 
 pdf(paste0(patient.id, "_", sample, ".pdf"), width=9, height=9)
 par(mfrow=c(2, 2), xaxs="i")
@@ -64,3 +70,5 @@ sapply(c(1:22, "X", "Y"), function (plot.chr) {
 })
 
 dev.off()
+
+})
