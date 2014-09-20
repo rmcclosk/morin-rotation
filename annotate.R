@@ -120,9 +120,9 @@ first <- T
         genome.subset <- subset(genome.chr.seg, start <= seg.start & end >= seg.end-1)
         chr.data.subset <- subset(by.chr.data, start <= seg.start & end >= seg.end-1)
         if (nrow(chr.data.subset) == 0) { cat("\n", seg.start, seg.end, "\n"); print(by.chr.data) }
-        c(exome.copy=exome.subset[1,"copy.number"],
-          genome.copy=genome.subset[1,"copy.number"],
-          locus=chr.data.subset[1,"locus"])
+        data.frame(exome.copy=exome.subset[1,"copy.number"],
+                   genome.copy=genome.subset[1,"copy.number"],
+                   locus=chr.data.subset[1,"locus"])
     }, bounds[-length(bounds)], bounds[-1], SIMPLIFY=F))
             
     d$purity <- by.purity
