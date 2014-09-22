@@ -82,9 +82,6 @@ chr.data <- merge(locus.starts, locus.ends)
 exome.dir <- file.path(WORK_DIR, "03_cnv")
 genome.dir <- file.path(WORK_DIR, "05_hmmcopy")
 
-# DEBUG
-sample.data <- sample.data[1,]
-
 exome.seg <- do.call(rbind, mapply(read.all.exome, 
                                    sample.data$sample, 
                                    sample.data$patient.id, 
@@ -112,15 +109,16 @@ first <- T
     bounds <- sort(unique(c(exome.chr.seg$start, exome.chr.seg$end+1, 
                             genome.chr.seg$start, genome.chr.seg$end+1,
                             by.chr.data$start+1, by.chr.data$end+1)))
-    bounds <- bounds[bounds >= min(exome.chr.seg$start) & bounds <= max(exome.chr.seg$end)]
+    bounds <- bounds[bounds >= min(exome.chr.seg$start) & bounds <= max(exome.chr.seg$end)+1]
 
     d <- do.call(rbind, mapply(function (seg.start, seg.end) {
-        exome.subset <- subset(exome.chr.seg, start <= seg.start & end >= seg.end)
+        exome.subset <- subset(exome.chr.seg, start <= seg.start & end >= seg.end-1)
         if (nrow(exome.subset) == 0) return (NULL)
         genome.subset <- subset(genome.chr.seg, start <= seg.start & end >= seg.end-1)
-        chr.data.subset <- subset(by.chr.data, start <= seg.start & end >= seg.end-1)
-        if (nrow(chr.data.subset) == 0) { cat("\n", seg.start, seg.end, "\n"); print(by.chr.data) }
-        data.frame(exome.copy=exome.subset[1,"copy.number"],
+        chr.data.subset <- subset(by.chr.data, start <= seg.start-1 & end >= seg.end-1)
+        data.frame(start=seg.start,
+                   end=seg.end,
+                   exome.copy=exome.subset[1,"copy.number"],
                    genome.copy=genome.subset[1,"copy.number"],
                    locus=chr.data.subset[1,"locus"])
     }, bounds[-length(bounds)], bounds[-1], SIMPLIFY=F))
