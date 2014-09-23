@@ -89,7 +89,7 @@ sample.data <- merge(sample.data, worst.coverage, by=c("patient_id"),
 sample.data$scale.factor <- sample.data$coverage.worst/sample.data$coverage
 
 sample.data$patient_id <- factor(sample.data$patient_id, levels=unique(sample.data$patient_id))
-. <- sapply(dirname(sample.data$filename.stem), dir.create, showWarnings=F, recursive=T)
+. <- sapply(dirname(sample.data[!sample.data$normal,]$filename.stem), dir.create, showWarnings=F, recursive=T)
 
 # Read in GATK coverage and scale down.
 sample.data <- sample.data[order(sample.data$patient_id, -sample.data$normal),]
