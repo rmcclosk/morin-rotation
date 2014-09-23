@@ -39,9 +39,9 @@ if (grepl("colorectal", WORK_DIR)) {
     sample.data$patient_id <- regmatches(basename(sample.data$bam.file), match)
 
     match <- regexpr("(T2|N|GL|T)", sub("PT", "", basename(sample.data$bam.file)))
-    sample.data$sample <- regmatches(sub("PT", "", basename(sample.data$bam.file)), match)
+    sample.data$sample_id <- regmatches(sub("PT", "", basename(sample.data$bam.file)), match)
 
-    sample.data$normal <- sample.data$sample %in% c("GL", "N")
+    sample.data$normal <- sample.data$sample_id %in% c("GL", "N")
 }
 
 sample.data$coverage.file <- file.path(coverage.dir, sub(".bam$", ".sample_summary", basename(sample.data$bam.file)))

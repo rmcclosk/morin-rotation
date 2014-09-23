@@ -3,13 +3,19 @@
 library(parallel)
 library(HMMcopy)
 
-source(file="/extscratch/morinlab/shared/rmccloskey/settings.conf")
+source(file="/home/rmccloskey/morin-rotation/settings.conf")
 
-out.dir <- file.path(WORK_DIR, "05_hmmcopy")
-wig.dir <- file.path(WORK_DIR, "04_readcounts")
-ncpus <- 4
+win.size <- as.integer(commandArgs(trailingOnly=T)[1])
+if (is.na(win.size)) win.size <- 1000
+
+out.dir <- file.path(WORK_DIR, "05_hmmcopy", win.size)
+wig.dir <- file.path(WORK_DIR, "04_readcounts", win.size)
+ncpus <- 8
 
 dir.create(out.dir, showWarnings=F)
+
+gc.file <- file.path(wig.dir, sub(".fa$", ".gc.wig", basename(HUMAN_REF)))
+map.file <- file.path(wig.dir, sub(".bw$", ".wig", basename(MAPPABILITY_FILE)))
 
 # Get BAM files for each sample.
 sample.data <- read.csv(GENOME_METADATA, header=T)
@@ -91,12 +97,12 @@ options(bitmapType="cairo")
 sample.data <- sample.data[order(sample.data$patient_id, -sample.data$normal),]
 mclapply(levels(sample.data$patient_id), function (p) {
     d <- subset(sample.data, patient_id == p)
-    norm.uncorrected.reads <- wigsToRangedData(d[1,"wig.file"], GC_FILE, MAPPABILITY_FILE)
+    norm.uncorrected.reads <- wigsToRangedData(d[1,"wig.file"], gc.file, map.file)
     norm.corrected.copy <- correctReadcount(norm.uncorrected.reads)
     write.output(d[1, "filename.stem"], norm.corrected.copy)
 
     sapply(2:nrow(d), function (i) {
-        tum.uncorrected.reads <- wigsToRangedData(d[i,"wig.file"], GC_FILE, MAPPABILITY_FILE)
+        tum.uncorrected.reads <- wigsToRangedData(d[i,"wig.file"], gc.file, map.file)
         tum.corrected.copy <- correctReadcount(tum.uncorrected.reads)
         tum.corrected.copy$copy <- tum.corrected.copy$copy - norm.corrected.copy$copy
 
