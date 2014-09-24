@@ -111,7 +111,7 @@ mclapply(levels(sample.data$patient_id), function (p) {
     sapply(2:nrow(d), function (i) {
         tum.uncorrected.reads <- wigsToRangedData(d[i,"wig.file"], gc.file, map.file)
         tum.corrected.copy <- correctReadcount(tum.uncorrected.reads)
-        tum.corrected.copy$copy <- tum.corrected.copy$copy - norm.corrected.copy$copy
+        tum.corrected.copy$copy <- tum.corrected.copy$copy - (2-d[i,"purity"])*norm.corrected.copy$copy
 
         param <- HMMsegment(tum.corrected.copy, getparam=T)
         param$e <- 0.999999999999999
