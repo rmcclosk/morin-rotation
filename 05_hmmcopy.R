@@ -1,7 +1,8 @@
 #!/gsc/software/linux-x86_64-centos5/R-3.0.2/bin/Rscript
 
-library(parallel)
-library(HMMcopy)
+#library(parallel)
+#library(HMMcopy)
+#library(flexclust)
 
 source(file="/home/rmccloskey/morin-rotation/settings.conf")
 
@@ -29,6 +30,13 @@ sample.data <- sample.data[!is.na(sample.data$bam.file),]
 sample.data$wig.file <- file.path(wig.dir, sub(".bam$", ".wig", basename(sample.data$bam.file)))
 sample.data <- sample.data[file.exists(sample.data$wig.file),]
 
+# merge with tumor purity data
+purity.data <- read.table("sample_info.dat", header=T)[,c("sample", "purity")]
+sample.data <- merge(sample.data, purity.data, by.x=c("sample_id"), by.y=c("sample"))
+nrow(sample.data)
+quit()
+
+
 # Annotate which samples are normal and which are tumor.
 # Delete patients with no normal sample.
 # TODO: also annotate with pre- and post-biopsy, from the clinical csv.
@@ -39,7 +47,6 @@ sample.data <- merge(sample.data, normal.counts, by=c("patient_id"), suffixes=c(
 
 # Don't redo things.
 sample.data$filename.stem <- file.path(out.dir, sample.data$patient_id, sample.data$sample_id)
-sample.data <- sample.data[!file.exists(paste0(sample.data$filename.stem, "_bias.pdf")),]
 
 # Delete patients with only one sample.
 bam.counts <- aggregate(bam.file~patient_id, sample.data, length)
@@ -110,13 +117,29 @@ mclapply(levels(sample.data$patient_id), function (p) {
         param$e <- 0.999999999999999
         param$strength <- 1e+30
 
-        segments <- HMMsegment(tum.corrected.copy, param)
-        write.output(paste0(d[i,"filename.stem"], "_default"), tum.corrected.copy, segments=segments, params=param)
+        if (!file.exists(paste0(d[i, "filename.stem"], "_default_segments.dat"))) {
+            segments <- HMMsegment(tum.corrected.copy, param)
+            write.output(paste0(d[i,"filename.stem"], "_default"), tum.corrected.copy, segments=segments, params=param)
+            medians <- segments$seg$median
+        } else {
+            seg <- read.table(paste0(d[i, "filename.stem"], "_default_segments.dat"), header=T)
+            medians <- seg$median
+        }
 
-        mu <- sort(kmeans(segments$seg$median)$centers)
-        param$mu <- mu
-        param$m <- mu
-        segments <- HMMsegment(tum.corrected.copy, param)
-        write.output(paste0(d[i,"filename.stem"], "_kmeans"), tum.corrected.copy, segments=segments, params=param)
+        if (!file.exists(paste0(d[i, "filename.stem"], "_kmeans_segments.dat"))) {
+            mu <- sort(kmeans(medians, 6)$centers)
+            param$mu <- mu
+            param$m <- mu
+            segments <- HMMsegment(tum.corrected.copy, param)
+            write.output(paste0(d[i,"filename.stem"], "_kmeans"), tum.corrected.copy, segments=segments, params=param)
+        }
+
+        if (!file.exists(paste0(d[i, "filename.stem"], "_kmedians_segments.dat"))) {
+            mu <- sort(kcca(medians, 6, family=kccaFamily("kmedians"))@centers)
+            param$mu <- mu
+            param$m <- mu
+            segments <- HMMsegment(tum.corrected.copy, param)
+            write.output(paste0(d[i,"filename.stem"], "_kmedians"), tum.corrected.copy, segments=segments, params=param)
+        }
     })
 }, mc.cores=ncpus)
