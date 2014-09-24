@@ -31,7 +31,7 @@ sample.data$wig.file <- file.path(wig.dir, sub(".bam$", ".wig", basename(sample.
 sample.data <- sample.data[file.exists(sample.data$wig.file),]
 
 # merge with tumor purity data
-purity.data <- read.table("sample_info.dat", header=T)[,c("sample", "purity")]
+purity.data <- read.table("/home/rmccloskey/morin-rotation/sample_info.dat", header=T)[,c("sample", "purity")]
 sample.data <- merge(sample.data, purity.data, by.x=c("sample_id"), by.y=c("sample"))
 nrow(sample.data)
 quit()
