@@ -111,6 +111,12 @@ mclapply(levels(sample.data$patient_id), function (p) {
         param$strength <- 1e+30
 
         segments <- HMMsegment(tum.corrected.copy, param)
-        write.output(d[i,"filename.stem"], tum.corrected.copy, segments=segments, params=param)
+        write.output(paste0(d[i,"filename.stem"], "_default"), tum.corrected.copy, segments=segments, params=param)
+
+        mu <- sort(kmeans(segments$seg$median)$centers)
+        param$mu <- mu
+        param$m <- mu
+        segments <- HMMsegment(tum.corrected.copy, param)
+        write.output(paste0(d[i,"filename.stem"], "_kmeans"), tum.corrected.copy, segments=segments, params=param)
     })
 }, mc.cores=ncpus)
