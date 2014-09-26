@@ -13,15 +13,16 @@ mkdir -p $OUT_DIR
 
 GC_FILE=$OUT_DIR/$(basename $HUMAN_REF | sed 's/fa[sta]*$/gc.wig/')
 if [[ ! -f $GC_FILE ]]; then
+    echo "Making GC content file."
     gcCounter -w $WIN_SIZE $HUMAN_REF > $GC_FILE
 fi
 
 MAP_FILE=$OUT_DIR/$(basename $MAPPABILITY_FILE | sed s/bw/wig/)
 if [[ ! -f $MAP_FILE ]]; then
+    echo "Making mappability file."
     mapCounter -w $WIN_SIZE $MAPPABILITY_FILE > $MAP_FILE
 fi
 
-exit 0
 for BAM_FILE in $(ls $IN_DIR/*.bam); do
     OUT_FILE=$OUT_DIR/$(basename $BAM_FILE | sed s/.bam$/.wig/)
     if [[ $BAM_FILE == *exome* ]]; then continue; fi
