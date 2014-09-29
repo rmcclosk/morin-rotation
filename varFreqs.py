@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/rmccloskey/bin/python3
 
 import pysam
 import sys
@@ -15,9 +15,10 @@ def countBasesAtPileupPosition(pileup_object,
         if position == x.pos + 1:
             for read in x.pileups:
                 if read.alignment.mapq >= minimum_mapping_qual:
-                    base = read.alignment.seq[read.qpos]
+                    base = chr(read.alignment.seq[read.qpos])
                     #weird that this is already done for mapping quality 
-                    base_qual = ord(read.alignment.qual[read.qpos])-33 
+                    #base_qual = ord(read.alignment.qual[read.qpos])-33 
+                    base_qual = read.alignment.qual[read.qpos]
                     if base_qual >= minimum_base_qual:
                         counts[base] += 1
 
@@ -32,19 +33,19 @@ def countBasesAtPileupPosition(pileup_object,
         return (counts[ref_allele], best_n, best_base) 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
-        print("Usage: varFreqs.py [bamfile] [reference fasta] [positions]")
+    if len(sys.argv) != 5:
+        print("Usage: varFreqs.py [bamfile] [reference fasta] [chrom] [positions]")
         sys.exit()
 
-    bam, genome_ref, positions = sys.argv[1:]
+    bam, genome_ref, chrom, positions = sys.argv[1:]
     positions = [int(i) for i in positions.split(",")]
 
     for pos in positions:
         start = pos-200
         end = pos+200
-        samfile = pysam.Samfile(bam, "rb")
+        samfile = pysam.Samfile(bam)
         reffile = pysam.Fastafile(genome_ref)
-        ref_base = reffile.fetch(reference="12",start=pos-1,end=pos)
+        ref_base = reffile.fetch(reference="12", start=pos-1, end=pos).decode("utf-8")
         try:
             pileup = samfile.pileup(chrom, start, end, fastafile=reffile)
         except ValueError:
