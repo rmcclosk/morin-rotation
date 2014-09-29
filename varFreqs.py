@@ -12,16 +12,14 @@ def countBasesAtPileupPosition(pileup_object,
 
     counts = {'A':0,'T':0,'C':0,'G':0}
     for x in pileup_object:
-        genome_coordinate = x.pos+1
-        if position != genome_coordinate:
-            continue
-        for read in x.pileups:
-            if read.alignment.mapq >= minimum_mapping_qual:
-                base = read.alignment.seq[read.qpos]
-                #weird that this is already done for mapping quality 
-                base_qual = ord(read.alignment.qual[read.qpos])-33 
-                if base_qual >= minimum_base_qual:
-                    counts[base] += 1
+        if position == x.pos + 1:
+            for read in x.pileups:
+                if read.alignment.mapq >= minimum_mapping_qual:
+                    base = read.alignment.seq[read.qpos]
+                    #weird that this is already done for mapping quality 
+                    base_qual = ord(read.alignment.qual[read.qpos])-33 
+                    if base_qual >= minimum_base_qual:
+                        counts[base] += 1
 
     if nonref_allele:
         total = sum(counts.values())
@@ -51,9 +49,10 @@ if __name__ == "__main__":
             pileup = samfile.pileup(chrom, start, end, fastafile=reffile)
         except ValueError:
             continue
-        (ref, nonref, other_base) = countBasesAtPileupPosition(pileup, pos, ref_base)
-        if nonref == 0:
-            continue
-        #VAF is ref / (nonref + ref)
-        #print "%s %s,%s %s>%s" % (pos,ref,nonref,ref_base,other_base)
-        print("{} {},{} {}>{}".format(pos, ref, nonref, ref_base, other_base))
+        (ref, nonref, other_base) = countBasesAtPileupPosition(pileup, 
+                                                               pos, 
+                                                               ref_base)
+        if nonref > 0:
+            #VAF is ref / (nonref + ref)
+            print("{} {},{} {}>{}".
+                  format(pos, ref, nonref, ref_base, other_base))
