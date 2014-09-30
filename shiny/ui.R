@@ -7,7 +7,12 @@ shinyUI(fluidPage(
     sidebarPanel(
       selectInput("patient",
                   "Patient ID:",
-                  levels(d$patient))
+                  levels(d$patient),
+                  multi=F),
+      selectInput("chrom",
+                  "Chromosome:",
+                  levels(d$chrom),
+                  multi=T)
     ),
 
     mainPanel(
