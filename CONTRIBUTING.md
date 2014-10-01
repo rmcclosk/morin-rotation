@@ -109,6 +109,36 @@ Setting up Lumpy
         make
         cp scripts/* $HOME/bin
 
+Setting up TITAN
+----------------
+
+1. Install the TitanCNA R package. From R:
+
+        source("http://bioconductor.org/biocLite.R")
+        biocLite("BiocUpgrade")
+        biocLite("TitanCNA")
+
+   Note that you must be running BioConductor >= 2.14, which is only available
+   for R 3.1. The instructons on the TITAN website state that you need R 3.0.2,
+   but this is incorrect.
+
+2. Install bcftools.
+
+        wget -O bcftools-1.1.tar.bz2 http://sourceforge.net/projects/samtools/files/samtools/1.1/bcftools-1.1.tar.bz2/download
+        tar xf bcftools-1.1.tar.bz2
+        cd bcftools-1.1
+        make
+        cp bcftools $HOME/bin
+
+3. Download TITANRunner.
+
+        wget http://compbio.bccrc.ca/files/2013/07/TITANRunner-0.1.1.zip
+        unzip TITANRunner-0.1.1.zip
+        cd TITANRunner
+
+4. Copy ``config_default.cfg`` to ``config.cfg`` and change the values to suit
+   your environment.
+
 Other tools
 -----------
 
