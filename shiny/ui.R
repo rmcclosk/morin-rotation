@@ -12,11 +12,12 @@ shinyUI(fluidPage(
       selectInput("chrom",
                   "Chromosome:",
                   levels(d$chrom),
-                  multi=T)
+                  multi=F)
     ),
 
     mainPanel(
-      plotOutput("freqPlot")
+      plotOutput("freqPlot"),
+      plotOutput("chromPlot")
     )
   )
 ))
