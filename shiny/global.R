@@ -9,10 +9,13 @@ d$chrom <- factor(d$chrom, levels=c(1:22, "X", "Y"))
 d$patient <- factor(d$patient, levels=unique(d$patient))
 d$sample <- factor(d$sample, levels=unique(d$sample))
 
+# mark sample 1, 2, ... for each patient
 nunique <- function (x) length(unique(x))
 upto <- function (n) 1:n
 sample.counts <- aggregate(sample~patient, d, nunique)
 sample.idx <- unlist(sapply(sample.counts$sample, upto))
 sample.counts <- data.frame(sample=levels(d$sample), sample.num=sample.idx)
-
 d <- merge(sample.counts, d)
+
+# give a unique key so we can make a tooltip
+d$key <- 1:nrow(d)

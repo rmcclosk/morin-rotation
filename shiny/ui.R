@@ -8,16 +8,15 @@ shinyUI(fluidPage(
       selectInput("patient",
                   "Patient ID:",
                   levels(d$patient),
-                  multi=F),
+                  multi=T),
       selectInput("chrom",
                   "Chromosome:",
                   levels(d$chrom),
-                  multi=F)
+                  multi=T)
     ),
 
     mainPanel(
-      plotOutput("freqPlot"),
-      plotOutput("chromPlot")
+      ggvisOutput("freqPlot")
     )
   )
 ))
