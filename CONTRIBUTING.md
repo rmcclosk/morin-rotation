@@ -136,7 +136,11 @@ Setting up TITAN
         unzip TITANRunner-0.1.1.zip
         cd TITANRunner
 
-4. Copy ``config_default.cfg`` to ``config.cfg`` and change the values to suit
+4. Obtain a local copy of dbSNP in VCF format.
+
+        wget ftp://ftp.ncbi.nlm.nih.gov/snp/organisms/human_9606_b141_GRCh37p13/VCF/common_all.vcf.gz
+
+5. Copy ``config_default.cfg`` to ``config.cfg`` and change the values to suit
    your environment.
 
 Other tools
