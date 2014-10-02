@@ -4,7 +4,6 @@
 *.jar
 *.pdf
 *.dat
-*.csv
 nohup.out
 settings.conf
 settings_xhosts.conf
