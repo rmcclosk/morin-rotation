@@ -38,7 +38,7 @@ nts <- c("A", "C", "G", "T")
     var.counts <- sapply(var.counts, sum)
 
     vcf$vaf <- var.counts/read.depth
-    vcf <- vcf[,c("chr", "pos", "vaf")]
+    vcf <- vcf[,c("chr", "pos", "ref", "alt", "vaf")]
     write.table(vcf, file=row["out.file.tumor"], col.names=T, row.names=F)
     cat(" done\n")
 })

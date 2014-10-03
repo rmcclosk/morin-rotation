@@ -3,10 +3,14 @@
 library(ABSOLUTE)
 
 source(file="/home/rmccloskey/morin-rotation/settings.conf")
+options("scipen"=100)
+
+sample.data <- read.table("sample_info.dat", header=T)
 
 coverage.dir <- file.path(WORK_DIR, "02_coverage")
-cnv.dir <- file.path(WORK_DIR, "03_cnv")
-out.dir <- file.path(WORK_DIR, "12_absolute")
+#cnv.dir <- file.path(WORK_DIR, "05_hmmcopy", "10000")
+cnv.dir <- file.path(WORK_DIR, "03_exomecnv")
+out.dir <- file.path(WORK_DIR, "13_absolute")
 dir.create(out.dir, showWarnings=F)
 
 # read metadata about samples
@@ -18,52 +22,48 @@ normal <- d[grepl("(BF|WB)", d$sample_id),]
 tumor <- d[!grepl("(BF|WB)", d$sample_id),]
 d <- merge(normal, tumor, by=c("patient_id"), suffixes=c(".normal", ".tumor"))
 d$out.dir <- file.path(out.dir, d$sample_id.tumor)
-d$rdata.path <- file.path(d$out.dir, paste0(d$sample_id, ".ABSOLUTE.RData"))
+d$rdata.path <- file.path(out.dir, paste0(d$sample_id.tumor, ".ABSOLUTE.RData"))
 
-coverage.file <- file.path(coverage.dir, d$file.name.tumor)
-ltt.file <- file.path(cnv.dir, d$patient_id, d$sample_id.tumor, "0.exon.lrr.txt")
+d$ltt.file <- file.path(cnv.dir, d$patient_id, paste0(d$sample_id.tumor, "_default_segments.dat"))
+d <- d[file.exists(d$ltt.file),]
 
-# read LTT segments from ExomeCNV
-ltt <- read.table(ltt.file[1], 
-                  col.names=c("Chromosome", "Start", "End", "Segment_Mean"))
-ltt$Chromosome <- sub("chr", "", ltt$Chromosome)
-
-# read coverage
-coverage <- read.table(coverage.file[1], header=T,
-                       colClasses=c("character", "numeric", rep("NULL", 7)))
-colnames(coverage)[2] <- "Num_Probes"
-coverage$Chromosome <- sapply(strsplit(coverage$Target, ":"), "[[", 1)
-range <- sapply(strsplit(coverage$Target, ":"), "[[", 2)
-coverage$Start <- sapply(strsplit(range, "-"), "[[", 1)
-coverage$End <- sapply(strsplit(range, "-"), "[[", 2)
-coverage <- coverage[,c("Chromosome", "Start", "End", "Num_Probes")]
-coverage <- coverage[coverage$Chromosome %in% c(1:22, "X"),]
-
-# we lose a few here, not quite sure why
-seg <- merge(ltt, coverage)
-seg$Chromosome <- factor(seg$Chromosome, levels=c(1:22, "X", "Y"))
-seg <- seg[order(seg$Chromosome, seg$Start),]
-write.table(seg, file=paste0(d[1, "out.dir"], ".seg"), row.names=F, quote=F, sep="\t")
-
-cat("Running absolute on sample", d[1, "sample_id.tumor"], "...")
-RunAbsolute(paste0(d[1, "out.dir"], ".seg"),
-            min.ploidy=0.95, 
-            max.ploidy=10, 
-            max.sigma.h=0.02, 
-            sigma.p=0, 
-            platform="Illumina_WES", 
-            copy_num_type="total",
-            results.dir=d[1, "out.dir"],
-            primary.disease="cancer", 
-            sample.name=d[1, "sample_id.tumor"], 
-            max.as.seg.count=10E10,
-            max.non.clonal=0,
-            max.neg.genome=0)
-cat(" done\n")
-
-CreateReviewObject(d[1, "sample_id.tumor"], d[1, "rdata.path"], d[1, "out.dir"],
-                   "total", verbose=T)
-calls.path = file.path("test-out", "test.PP-calls_tab.txt")
-modes.path = file.path("test-out", "test.PP-modes.data.RData")
-output.path = "test-extract"
-ExtractReviewedResults(calls.path, "test", modes.path, output.path, "absolute", "total")
+sapply(1:nrow(d), function (i) {
+    # read segments from HMMcopy
+    seg <- read.table(d[i, "ltt.file"], header=T,
+                      colClasses=c("character", rep("numeric", 2), "NULL", "numeric"),
+                      col.names=c("Chromosome", "Start", "End", "state", "Segment_Mean"))
+    seg$Chromosome <- sub("chr", "", seg$Chromosome)
+    seg$Num_Probes <- round((seg$End-seg$Start)/10000)
+    
+    seg$Chromosome <- factor(seg$Chromosome, levels=c(1:22, "X", "Y"))
+    seg <- seg[order(seg$Chromosome, seg$Start),]
+    write.table(seg, file=paste0(d[i, "out.dir"], ".seg"), row.names=F, quote=F, sep="\t")
+    
+    cat("Running absolute on sample", d[i, "sample_id.tumor"], "...")
+    sink(paste0(d[i, "out.dir"], ".log"))
+    RunAbsolute(paste0(d[i, "out.dir"], ".seg"),
+                min.ploidy=0.95, 
+                max.ploidy=10, 
+                max.sigma.h=0.02, 
+                sigma.p=0, 
+                platform="Illumina_WES", 
+                copy_num_type="total",
+                results.dir=out.dir,
+                primary.disease="cancer", 
+                sample.name=d[i, "sample_id.tumor"], 
+                max.as.seg.count=10E10,
+                max.non.clonal=0,
+                max.neg.genome=0,
+                verbose=T)
+    sink()
+    cat(" done\n")
+    
+    CreateReviewObject(d[i, "sample_id.tumor"], d[i, "rdata.path"], 
+                       out.dir, "total", verbose=T)
+    
+    calls.path = file.path(out.dir,
+                           paste0(d[i, "sample_id.tumor"], ".PP-calls_tab.txt"))
+    modes.path = file.path(out.dir,
+                           paste0(d[i, "sample_id.tumor"], ".PP-modes.data.RData"))
+    ExtractReviewedResults(calls.path, d[i, "sample_id.tumor"], modes.path, out.dir, "absolute", "total")
+})

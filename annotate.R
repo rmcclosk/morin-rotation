@@ -42,8 +42,8 @@ read.genome.segments <- function (file.path) {
 # Read all genome segments files for a particular patient/sample.
 read.all.genome <- function (sample, patient.id, genome.dir) {
     cat("Reading genome segments for sample", sample, "... ")
-    seg.dir <- file.path(genome.dir, patient.id)
-    seg.file <- file.path(seg.dir, paste0(sample, "_segments.dat"))
+    seg.dir <- file.path(genome.dir, "10000", patient.id)
+    seg.file <- file.path(seg.dir, paste0(sample, "_kmeans_segments.dat"))
     if (!file.exists(seg.file)) {
         cat("none found\n")
         return (NULL)
@@ -70,14 +70,8 @@ report.purity <- (sample.data$X..tumor/100) *
 sample.data$report.purity <- ifelse(is.na(report.purity), sample.data$X..Tumor/100, report.purity)
 sample.data <- sample.data[,c("patient.id", "sample", "report.purity")]
 
-chr.data <- read.table(CYTO_BAND, header=F,
-                       col.names=c("chr", "start", "end", "locus", "g"))
-chr.data$chr <- factor(sub("chr", "", chr.data$chr))
-chr.data$locus <- sub("[.].*", "", chr.data$locus)
-
-locus.starts <- aggregate(start~chr+locus, chr.data, min)
-locus.ends <- aggregate(end~chr+locus, chr.data, max)
-chr.data <- merge(locus.starts, locus.ends)
+# read chromosome band locations
+chr.data <- read.table("bands.dat", header=T)
 
 exome.dir <- file.path(WORK_DIR, "03_cnv")
 genome.dir <- file.path(WORK_DIR, "05_hmmcopy")
@@ -93,10 +87,11 @@ genome.seg <- do.call(rbind, mapply(read.all.genome,
                                     genome.dir, 
                                     SIMPLIFY=FALSE))
 exome.seg <- exome.seg[exome.seg$sample %in% genome.seg$sample,]
+unique(exome.seg$sample)
 first <- T
 
 # group by chromosome, sample, purity
-. <- by(exome.seg, list(exome.seg$sample, exome.seg$chr, exome.seg$purity), function (exome.chr.seg) {
+by(exome.seg, list(exome.seg$sample, exome.seg$chr, exome.seg$purity), function (exome.chr.seg) {
     by.chr <- exome.chr.seg[1, "chr"]
     by.purity <- exome.chr.seg[1, "purity"]
     by.sample <- exome.chr.seg[1, "sample"]
@@ -120,7 +115,7 @@ first <- T
                    end=seg.end,
                    exome.copy=exome.subset[1,"copy.number"],
                    genome.copy=genome.subset[1,"copy.number"],
-                   locus=chr.data.subset[1,"locus"])
+                   locus=chr.data.subset[1,"band"])
     }, bounds[-length(bounds)], bounds[-1], SIMPLIFY=F))
             
     d$purity <- by.purity
