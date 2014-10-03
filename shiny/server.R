@@ -3,14 +3,33 @@ library(ggvis)
 
 shinyServer(function(input, output) {
 
-    plot.data <- reactive({
-        pd <- subset(d, patient %in% input$patient & chrom %in% input$chrom)
+    all.plot.data <- reactive({
+        pd <- subset(d, patient %in% input$patient & 
+                        chrom %in% input$chrom & 
+                        depth >= input$depth)
 
-        # can't have an empty plot...
         if (nrow(pd) == 0) {
             names <- colnames(pd)
             pd <- rbind(pd, rep(0, ncol(pd)))
             colnames(pd) <- names
+        }
+        pd[order(pd$pos, pd$sample.num),]
+    })
+
+    plot.data <- reactive({
+        pd <- all.plot.data()
+
+        # can't have an empty plot...
+        if (nrow(pd) > 1) {
+	        if (input$order == "Highest fraction") {
+	            aggfun <- sum
+	        } else if (input$order == "Total change") {
+	            aggfun <- function (x) max(abs(diff(x)))
+	        }
+	        agg <- aggregate(vaf~patient+pos, pd, aggfun)
+	        agg <- agg[order(-agg$vaf),]
+	        agg <- head(agg, input$n)
+	        pd <- merge(pd, agg, by=c("patient", "pos"), suffixes=c("", ".agg"))
         }
         pd[order(pd$pos, pd$sample.num),]
     })
@@ -27,16 +46,31 @@ shinyServer(function(input, output) {
     }
 
     freqPlot.vis <- reactive({
-        plot.data %>%
-            ggvis(x=~factor(sample.num), y=~vaf) %>%
-            layer_points(key := ~key) %>%
-            group_by(pos, patient) %>%
-            layer_paths() %>%
+        vis <- plot.data %>% 
+            ggvis(x=~factor(sample.num), y=~vaf)
+
+        if (input$color == "None") {
+            vis <- vis %>% 
+                layer_points(key := ~key) %>%
+                group_by(pos, patient)  %>%
+                layer_paths()
+        } else if (input$color == "Patient") {
+            vis <- vis %>% 
+                layer_points(key := ~key, fill = ~factor(patient)) %>%
+                group_by(pos, patient)  %>%
+                layer_paths(stroke = ~factor(patient))
+        } else if (input$color == "Chromosome") {
+            vis <- vis %>% 
+                layer_points(key := ~key, fill=~factor(chrom)) %>%
+                group_by(pos, patient)  %>%
+                layer_paths(stroke = ~factor(chrom))
+        }
+
+        vis %>%
             add_tooltip(tooltip, "hover") %>%
             add_axis("x", title="sample") %>%
             add_axis("y", title="variant allele fraction") 
     })
 
     freqPlot.vis %>% bind_shiny("freqPlot")
-
 })

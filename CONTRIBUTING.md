@@ -143,6 +143,9 @@ Setting up TITAN
 5. Copy ``config_default.cfg`` to ``config.cfg`` and change the values to suit
    your environment.
 
+6. Follow the installation instructions
+   (here)[http://compbio.bccrc.ca/software/titan/titan-installation/].
+
 Other tools
 -----------
 
