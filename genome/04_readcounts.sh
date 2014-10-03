@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. settings.conf
+. ../settings.conf
 
 WIN_SIZE=$1
 if [[ "x$WIN_SIZE" == "x" ]]; then

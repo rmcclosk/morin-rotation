@@ -1,8 +1,8 @@
 #!/gsc/software/linux-x86_64-centos5/R-3.0.2/bin/Rscript
 
-#library(parallel)
-#library(HMMcopy)
-#library(flexclust)
+library(parallel)
+library(HMMcopy)
+library(flexclust)
 
 source(file="/home/rmccloskey/morin-rotation/settings.conf")
 

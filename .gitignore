@@ -4,6 +4,7 @@
 *.jar
 *.pdf
 *.dat
+__pycache__
 nohup.out
 settings.conf
 settings_xhosts.conf

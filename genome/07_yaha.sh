@@ -1,7 +1,6 @@
 #!/bin/bash
 
-. settings.conf
-WORK_DIR=/extscratch/morinlab/shared/rmccloskey/colorectal
+. ../settings.conf
 
 IN_DIR=$WORK_DIR/06_unmapped
 OUT_DIR=$WORK_DIR/07_yaha

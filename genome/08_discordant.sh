@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. settings.conf
+. ../settings.conf
 
 IN_DIR=$WORK_DIR/00_bams
 OUT_DIR=$WORK_DIR/08_discordant
