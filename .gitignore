@@ -11,3 +11,5 @@ settings_xhosts.conf
 settings_genesis.conf
 jobs.txt
 qsub-logs
+.RData
+.Rhistory
