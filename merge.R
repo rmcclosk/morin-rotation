@@ -77,5 +77,8 @@ merge.segs <- function (d1, d2) {
         d[i+1,] <<- res[["next.seg"]]
         res[["new.rows"]]
     }))
-    rbind(new.d, tail(d, 1))
+    if (is.na(tail(d, 1)[1]))
+        as.data.frame(new.d)
+    else
+        as.data.frame(rbind(new.d, tail(d, 1)))
 }

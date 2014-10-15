@@ -16,14 +16,14 @@ dir.create(out.dir, showWarnings=F)
 
 platform <- "Illumina_WES"
 primary.disease <- "colorectal_cancer"
-sigma.p <- 0.01
+sigma.p <- 0.02
 max.sigma.h <- 0.03
 min.ploidy <- 1
 max.ploidy <- 6
 max.as.seg.count <- 1500
 max.non.clonal <- 0.1
 max.neg.genome <- 0.01
-min.mut.af <- 0.1
+min.mut.af <- 0.05
 copy_num_type <- "total"
 
 DoAbsolute <- function(sample) {
@@ -56,18 +56,39 @@ DoAbsolute <- function(sample) {
     cat(" done\n")
 }
 
+expand.vcf <- function (vcf) {
+    res <- as.data.frame(t(do.call(rbind, lapply(vcf, function (row) {
+        alt <- strsplit(as.character(row["ALT"]), ",")[[1]]
+        do.call(rbind, lapply(alt, function (a) {
+            row["ALT"] <- a
+            row
+        }))
+    }))))
+    colnames(res) <- colnames(vcf)
+    res
+}
+
 # read mutations from MAF, ref and alt counts from VCF
 read.maf.vcf <- function (sample) {
-    maf <- read.table(file.path(maf.dir, paste0(sample, ".maf")), header=T, sep="\t", fill=T)
-    vcf <- read.table(file.path(vcf.dir, paste0(sample, ".vcf")), header=F, sep="\t", fill=T,
+    maf.file <- file.path(maf.dir, paste0(sample, ".maf"))
+    vcf.file <- file.path(vcf.dir, paste0(sample, ".vcf"))
+
+    if (!file.exists(maf.file) | !file.exists(vcf.file)) return ()
+
+    maf <- read.table(maf.file, header=T, sep="\t", fill=T)
+    vcf <- read.table(vcf.file, header=F, sep="\t", fill=T,
                       col.names=c("CHROM", "POS", "ID", "REF", "ALT", "QUAL",
-                                  "FILTER", "INFO", "FORMAT", "NORMAL", "TUMOR"))
+                                  "FILTER", "INFO", "FORMAT", "NORMAL", "TUMOR"),
+                      stringsAsFactors=F)
+    vcf <- expand.vcf(vcf)
     chroms <- c(1:22, "X", "Y")
     nucs <- c("A", "C", "G", "T")
     maf$Chromosome <- factor(maf$Chromosome, levels=chroms)
     vcf$CHROM <- factor(vcf$CHROM, levels=chroms)
     maf$Reference_Allele <- factor(maf$Reference_Allele, levels=nucs)
     vcf$REF <- factor(vcf$REF, levels=nucs)
+    maf$Tumor_Seq_Allele1 <- factor(maf$Tumor_Seq_Allele1, levels=nucs)
+    vcf$ALT <- factor(vcf$ALT, levels=nucs)
     
     new.maf <- do.call(rbind, lapply(1:nrow(maf), function (i) {
         row <- maf[i,]
@@ -90,12 +111,14 @@ read.maf.vcf <- function (sample) {
 }
 
 d <- read.table(METADATA, header=T)
-DoAbsolute(d$tumor.sample[1])
+
+#registerDoMC(4)
+sapply(d$tumor.sample, read.maf.vcf)
 quit()
-#registerDoMC(1)
 foreach (sample=d$tumor.sample, .combine=c) %dopar% {
   DoAbsolute(sample)
 }
+quit()
 
 obj.name <- "summary"
 absolute.files <- file.path(out.dir, paste0(d$tumor.sample, ".ABSOLUTE.RData"))
