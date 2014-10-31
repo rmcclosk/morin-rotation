@@ -4,21 +4,19 @@
 library(getopt)
 
 spec <- matrix(c(
-    "tumor.bam", "a", 1, "character",
-    "tumor.coverage", "b", 1, "character",
-    "tumor.interval.coverage", "c", 1, "character",
-    "normal.bam", "d", 1, "character",
-    "normal.coverage", "e", 1, "character",
-    "normal.interval.coverage", "f", 1, "character",
-    "read.length", "g", 1, "integer",
-    "admixture.rate", "h", 1, "double",
-    "chr.list", "i", 1, "character",
-    "sens.exon", "j", 1, "double",
-    "spec.exon", "k", 1, "double",
-    "opt.exon", "l", 1, "character",
-    "sens.segment", "m", 1, "double",
-    "spec.segment", "n", 1, "double",
-    "opt.segment", "o", 1, "character"
+    "tumor.coverage", "a", 1, "character",
+    "normal.coverage", "b", 1, "character",
+    "read.length", "c", 1, "integer",
+    "admixture.rate", "d", 1, "double",
+    "chr.list", "e", 1, "character",
+    "sens.exon", "f", 1, "double",
+    "spec.exon", "g", 1, "double",
+    "opt.exon", "h", 1, "character",
+    "sens.segment", "i", 1, "double",
+    "spec.segment", "j", 1, "double",
+    "opt.segment", "k", 1, "character",
+    "coverage.cutoff", "l", 1, "integer",
+    "output.stem", "m", 1, "character"
 ), byrow=TRUE, ncol=4)
 opt <- getopt(spec)
 
@@ -29,14 +27,13 @@ if (!is.null(opt$help)) {
 }
 
 # Enforce required arguments.
-if (is.null(opt$tumor.bam) | is.null(opt$normal.bam)) {
-    cat("You must specify a tumor and normal bam file\n", file=stderr())
+if (is.null(opt$output.stem)) {
+    cat("You must specify a stem for output files\n", file=stderr())
+    quit(status=1)
 }
 if (is.null(opt$tumor.coverage) | is.null(opt$normal.coverage)) {
-    cat("You must specify coverage summaries for the tumor and normal samples\n", file=stderr())
-}
-if (is.null(opt$tumor.interval.coverage) | is.null(opt$normal.interval.coverage)) {
-    cat("You must specify interval coverage for the tumor and normal samples\n", file=stderr())
+    cat("You must specify coverage files for the tumor and normal samples\n", file=stderr())
+    quit(status=1)
 }
 if (is.null(opt$read.length)) {
     cat("You must specify the average read length\n", file=stderr())
@@ -56,6 +53,7 @@ if (is.null(opt$sens.segment)) { opt$sens.segment <- 0.99 }
 if (is.null(opt$spec.segment)) { opt$spec.segment <- 0.99 }
 if (is.null(opt$opt.segment)) { opt$opt.segment <- "auc" }
 if (is.null(opt$admixture.rate)) { opt$admixture.rate <- 0.3 }
+if (is.null(opt$coverage.cutoff)) { opt$coverage.cutoff <- 5 }
 
 # Warn when in violation of the user guide.
 if (opt$spec.exon < 0.9999 | opt$opt.exon != "spec") {
@@ -69,90 +67,25 @@ if ((opt$opt.exon == "auc" & opt$sens.exon != opt$spec.exon) |
                   "specificity when the option \"auc\" is used."))
 }
 
-# Get BAM files for each sample.
-sample.data$coverage.file <- file.path(coverage.dir, sub(".bam$", ".sample_summary", basename(sample.data$bam.file)))
-sample.data <- sample.data[file.exists(sample.data$coverage.file),]
+# Create directory for outputs, if needed.
+dir.create(dirname(opt$output.stem), showWarnings=F, recursive=T)
 
-# Annotate which samples are normal and which are tumor.
-# Delete patients with no normal sample.
-# TODO: also annotate with pre- and post-biopsy, from the clinical csv.
-sample.data$normal <- grepl("BF", sample.data$sample_id)
-sample.data <- sample.data[order(sample.data$patient_id, -sample.data$normal),]
-normal.counts <- aggregate(normal~patient_id, sample.data, sum)
-normal.counts <- normal.counts[normal.counts$normal == 1,]
-sample.data <- merge(sample.data, normal.counts, by=c("patient_id"), suffixes=c("", ".count"))
-
-sample.data$patient_id <- factor(sample.data$patient_id, levels=unique(sample.data$patient_id))
-sample.data$filename.stem <- file.path(out.dir, sample.data$patient_id, sample.data$sample_id, cnv.contam)
-
-# Remove late time points which have already been analysed.
-sample.data <- sample.data[!file.exists(paste0(sample.data$filename.stem, ".cnv.txt")),]
-
-if (all(sample.data$normal)) {
-	cat("Nothing to do\n", stderr())
-	quit()
-}
-
-# Delete patients with only one sample.
-bam.counts <- aggregate(bam.file~patient_id, sample.data, length)
-bam.counts <- bam.counts[bam.counts$bam.file > 1,]
-sample.data <- merge(sample.data, bam.counts, by=c("patient_id"), suffixes=c("", ".count"))
-
-# Read mean coverage for each sample.
-sample.data$coverage <- sapply(sample.data$coverage.file, function (f) {
-    read.table(f, header=T, fill=T, sep="\t")[1,"mean"]
-})
-
-# Remove patients with only one BAM file.
-counts <- aggregate(bam.file~patient_id, sample.data, length)
-keep.patients <- subset(counts, bam.file > 1, select=c("patient_id"))
-sample.data <- merge(sample.data, keep.patients)
-sample.data$patient_id <- factor(sample.data$patient_id, 
-                                 levels=keep.patients$patient_id)
-
-# Find the minimum coverage by patient and scaling factors.
-worst.coverage <- aggregate(coverage~patient_id, sample.data, min)
-sample.data <- merge(sample.data, worst.coverage, by=c("patient_id"), 
-                     suffixes=c("", ".worst"))
-sample.data$scale.factor <- sample.data$coverage.worst/sample.data$coverage
-
-sample.data$patient_id <- factor(sample.data$patient_id, levels=unique(sample.data$patient_id))
-. <- sapply(dirname(sample.data$filename.stem), dir.create, showWarnings=F, recursive=T)
-
-# Read in GATK coverage and scale down.
-sample.data <- sample.data[order(sample.data$patient_id, -sample.data$normal),]
-
-sample.data$coverage.interval.file <- gsub("sample_summary$", "sample_interval_summary", sample.data$coverage.file)
-coverage <- mclapply(1:nrow(sample.data), function (i) {
-    d <- read.coverage.gatk(sample.data[i, "coverage.interval.file"])
-    scale.factor <- sample.data[i, "scale.factor"]
-    d$coverage <- d$coverage*scale.factor
-    d$average.coverage <- d$average.coverage*scale.factor
-    d$base.with..10.coverage <- d$base.with..10.coverage*scale.factor
-    d
-}, mc.cores=ncpus)
-names(coverage) <- sample.data$bam.file
+# Read in coverage.
+tumor.coverage <- read.coverage.gatk(opt$tumor.coverage)
+normal.coverage <- read.coverage.gatk(opt$normal.coverage)
 
 # Run ExomeCNV.
 options(bitmapType="cairo")
-. <- by(sample.data, sample.data$patient_id, function (x) {
-    pairs <- expand.grid(1, 2:nrow(x))
-    apply(pairs, 1, function (pair) {
-        bam.files <- x[pair, "bam.file"]
-        coverage1 <- coverage[[bam.files[1]]]
-        coverage2 <- coverage[[bam.files[2]]]
-        logR <- calculate.logR(coverage1, coverage2)
-        eCNV <- do.call(rbind, mclapply(chr.list, function (chr) {
-            idx <- coverage1$chr == chr
-            classify.eCNV(normal=coverage1[idx,], tumor=coverage2[idx,], 
-                          logR=logR[idx], min.spec=min.spec, 
-                          min.sens=min.sens, option=cnv.option, 
-                          c=cnv.contam, l=cnv.length)
-        }, mc.cores=ncpus))
-        cnv <-  multi.CNV.analyze(coverage1, coverage2, logR=logR, 
-                                  all.cnv.ls=list(eCNV), coverage.cutoff=5, 
-                                  min.spec=0.99, min.sens=0.99, option="auc", 
-                                  c=cnv.contam)
-        write.output(eCNV, cnv, x[pair[2], "filename.stem"])
-    })
-})
+logR <- calculate.logR(normal.coverage, tumor.coverage)
+eCNV <- do.call(rbind, lapply(opt$chr.list, function (chr) {
+    idx <- normal.coverage$chr == chr
+    classify.eCNV(normal=normal.coverage[idx,], tumor=tumor.coverage[idx,],
+                  logR=logR[idx], min.spec=opt$spec.exon, min.sens=opt$sens.exon,
+                  option=opt$opt.exon, c=opt$admixture.rate, l=opt$read.length)
+}))
+cnv <-  multi.CNV.analyze(normal.coverage, tumor.coverage, logR=logR,
+                          all.cnv.ls=list(eCNV),
+                          coverage.cutoff=opt$coverage.cutoff,
+                          min.spec=opt$spec.segment, min.sens=opt$sens.segment,
+                          option=opt$opt.segment, c=opt$admixture.rate)
+write.output(eCNV, cnv, opt$output.stem)
