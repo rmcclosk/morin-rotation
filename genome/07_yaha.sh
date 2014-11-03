@@ -23,3 +23,18 @@ done > jobs.txt
 if [[ -s jobs.txt ]]; then
     mqsub --file jobs.txt --chdir qsub-logs --name yaha --qsub "-pe ncpus $NCPUS -l h_vmem=$MEM -l mem_token=$MEM -l mem_free=$MEM"
 fi
+
+for BAM_FILE in $(ls $OUT_DIR/*.bam); do
+    samtools view -H $BAM_FILE | grep SO:coordinate > /dev/null
+    if [[ $? -ne 0 ]]; then
+        echo "source $HOME/.bash_profile; samtools sort -O bam -T $BAM_FILE -o $BAM_FILE.sort $BAM_FILE && mv $BAM_FILE.sort $BAM_FILE"
+    else
+        echo "BAM file $BAM_FILE is already sorted" >&2
+    fi
+done > jobs.txt
+
+NCPUS=1
+MEM=4G
+if [[ -s jobs.txt ]]; then
+    mqsub --file jobs.txt --chdir qsub-logs --name sort --qsub "-pe ncpus $NCPUS -l h_vmem=$MEM -l mem_token=$MEM -l mem_free=$MEM"
+fi

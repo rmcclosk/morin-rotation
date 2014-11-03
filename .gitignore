@@ -4,6 +4,7 @@
 *.jar
 *.pdf
 *.dat
+*.bed
 __pycache__
 nohup.out
 settings.conf
@@ -13,3 +14,9 @@ jobs.txt
 qsub-logs
 .RData
 .Rhistory
+*.orig
+.ruffus_history.sqlite
+snv.tsv
+titan-ref
+refGene.txt
+tmp
