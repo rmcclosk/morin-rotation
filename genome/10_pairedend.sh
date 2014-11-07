@@ -2,23 +2,17 @@
 
 . ../settings.conf
 
-IN_DIR=$WORK_DIR/00_bams
+IN_DIR=$WORK_DIR/01_fixbams
 OUT_DIR=$WORK_DIR/10_pairedend
 mkdir -p $OUT_DIR
 
-for BAM_FILE in $(ls $IN_DIR/*genome*.bam); do
-    OUT_FILE=$OUT_DIR/$(basename $BAM_FILE)
+for BAM_FILE in $(ls $IN_DIR/*.bam); do
+    OUT_FILE=$(echo $OUT_DIR/$(basename $BAM_FILE) | sed s/bam$/histo/)
     if [[ ! -f $OUT_FILE ]]; then
-        echo -n "source $HOME/.bash_profile; "
-        echo -n "samtools view -h $BAM_FILE | "
-        echo -n "$LUMPY_DIR/extractSplitReads_BwaMem -i stdin | "
-        echo -n "samtools view -Sb - "
-        echo "> $OUT_FILE"
+        samtools view $BAM_FILE | tail -n +100000 | \
+            $LUMPY_DIR/pairend_distro.py -r 100 -X 4 -N 10000 -o $OUT_FILE \
+            > $(echo $OUT_FILE | sed s/histo/dat/)
     else
         echo "Output file $OUT_FILE already exists" >&2
     fi
-done > jobs.txt
-
-if [[ -s jobs.txt ]]; then
-    mqsub --file jobs.txt --chdir qsub-logs --name pairedend
-fi
+done 

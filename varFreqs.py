@@ -1,11 +1,11 @@
-#!/home/rmccloskey/bin/python3
+#!/home/rmccloskey/bin/python
 
 import pysam
 import sys
 import csv
 import imp
 import os
-import itertools
+import re
 
 settings = imp.load_source("settings", "/home/rmccloskey/morin-rotation/settings.conf")
 NUCLEOTIDES = ["A", "T", "C", "G"]
@@ -25,9 +25,9 @@ def countBasesAtPileupPosition(pileup_object,
                 qc_fail = read.alignment.is_qcfail
                 low_mapq = read.alignment.mapq < minimum_mapping_qual
                 if not (dup or qc_fail or low_mapq):
-                    base_qual = read.alignment.qual[read.qpos]-33
+                    base_qual = ord(read.alignment.qual[read.qpos])-33
                     if base_qual >= minimum_base_qual:
-                        base = chr(read.alignment.seq[read.qpos])
+                        base = read.alignment.seq[read.qpos]
                         counts[base] += 1
 
     ref_count = sum(counts[a] for a in ref_allele)
@@ -45,7 +45,22 @@ def read_vcf_file(path):
         positions.add((row["chrom"], int(row["pos"]), row["ref"], row["alt"]))
     return positions
 
-def get_vcf(samfile, reffile, chrom, pos, ref_base, alt_base):
+def read_maf_file(path):
+    """Read lines from MAF file, index by position and allele."""
+    if not os.path.exists(path):
+        return {}
+    rows = {}
+    with open(path) as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        for row in reader:
+            key = (row["Chromosome"], 
+                   row["Start_Position"], 
+                   row["Reference_Allele"], 
+                   row["Tumor_Seq_Allele1"])
+            rows[key] = row
+    return rows
+
+def get_counts(samfile, reffile, chrom, pos, ref_base, alt_base):
     """Get the variant allele fraction at a particular position."""
     start = max(pos-200, 0)
     end = pos+200
@@ -54,40 +69,57 @@ def get_vcf(samfile, reffile, chrom, pos, ref_base, alt_base):
     pileup = samfile.pileup(chrom, start, end, fastafile=reffile)
     return countBasesAtPileupPosition(pileup, pos, ref_base, alt_base)
 
+def try_append(d, key, value):
+    try:
+        d[key].append(value)
+    except KeyError:
+        d[key] = [value]
+    return d
+
 if __name__ == "__main__":
 
     reader = csv.DictReader(open(settings.METADATA), delimiter="\t")
-    writer = csv.writer(sys.stdout, delimiter="\t")
+
+    fields = ["patient", "sample", "chrom", "pos", "ref", "alt", "ref.count", 
+              "alt.count", "depth", "gene", "class", "rs", "cosmic", "esp",
+              "prot.change"]
+    writer = csv.DictWriter(sys.stdout, delimiter="\t", fieldnames=fields)
+    writer.writeheader()
+
     samples = {}
     for row in reader:
-        if row["normal.sample"]:
-            try:
-                samples[row["patient"]].append(row["normal.sample"])
-            except KeyError:
-                samples[row["patient"]] = [row["normal.sample"]]
+        samples = try_append(samples, row["patient"], row["tumor.sample"])
 
-        try:
-            samples[row["patient"]].append(row["tumor.sample"])
-        except KeyError:
-            samples[row["patient"]] = [row["tumor.sample"]]
-
-    vcf_dir = os.path.join(settings.WORK_DIR, "11_strelka")
+    maf_dir = os.path.join(settings.WORK_DIR, "11_snv")
     bam_dir = os.path.join(settings.WORK_DIR, "01_fixbams")
     reffile = pysam.Fastafile(settings.HUMAN_REF)
 
-    row = ["patient", "sample", "chrom", "pos", "ref", "alt", "ref.count", "alt.count", "depth"]
-    writer.writerow(row)
     for patient in samples:
-        positions = set([])
+        all_rows = {}
         for sample in samples[patient]:
-            vcf_file = os.path.join(vcf_dir, "{}.vcf".format(sample))
-            if os.path.exists(vcf_file):
-                positions |= read_vcf_file(vcf_file)
+            maf_file = os.path.join(maf_dir, "{}.maf".format(sample))
+            all_rows.update(read_maf_file(maf_file))
         
         for sample in samples[patient]:
             bam_file = os.path.join(bam_dir, "{}.bam".format(sample))
+            if not os.path.exists(bam_file):
+                continue
             samfile = pysam.Samfile(bam_file)
-            for chrom, pos, ref_base, alt_base in positions:
-                depth, ref_count, alt_count = get_vcf(samfile, reffile, chrom, pos, ref_base.split(","), alt_base.split(","))
-                row = [patient, sample, chrom, pos, ref_base, alt_base, ref_count, alt_count, depth]
+            for key, in_row in all_rows.items():
+                row = dict.fromkeys(fields)
+                row["chrom"], row["pos"], row["ref"], row["alt"] = key
+                row["pos"] = int(row["pos"])
+                res = get_counts(samfile, reffile, row["chrom"], row["pos"], 
+                                 in_row["Reference_Allele"], 
+                                 in_row["Tumor_Seq_Allele1"])
+                row["depth"], row["ref.count"], row["alt.count"] = res
+                row["patient"] = patient
+                row["sample"] = sample
+                row["gene"] = in_row["Hugo_Symbol"]
+                row["class"] = in_row["Variant_Classification"]
+                
+                row["cosmic"] = ",".join(re.findall("COSM\d+", in_row["dbSNP_RS"]))
+                row["rs"] = ",".join(re.findall("rs\d+", in_row["dbSNP_RS"]))
+                row["esp"] = ",".join(re.findall("TMP_ESP_[\dXY]{1,2}_\d+", in_row["dbSNP_RS"]))
+                row["prot.change"] = in_row["Protein_Change"].replace("p.", "")
                 writer.writerow(row)

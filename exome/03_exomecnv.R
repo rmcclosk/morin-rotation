@@ -17,7 +17,7 @@ min.spec <- 0.9999
 cnv.option <- "spec"
 cnv.length <- 100
 cnv.contam <- as.numeric(commandArgs(trailingOnly=T)[1])
-ncpus <- 1
+ncpus <- 8
 
 dir.create(out.dir, showWarnings=F)
 
@@ -37,7 +37,7 @@ sample.data <- sample.data[file.exists(sample.data$normal.coverage.file) &
                            file.exists(sample.data$tumor.coverage.file),]
 
 sample.data$filename.stem <- file.path(out.dir, sample.data$tumor.sample, cnv.contam)
-sample.data <- sample.data[!file.exists(paste0(sample.data$filename.stem, ".cnv.txt")),]
+sample.data <- sample.data[!file.exists(paste0(sample.data$filename.stem, ".cnv.png")),]
 
 if (nrow(sample.data) == 0) {
 	cat("Nothing to do\n", stderr())
