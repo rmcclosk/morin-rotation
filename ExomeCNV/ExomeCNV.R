@@ -2,6 +2,7 @@
 
 library(ExomeCNV)
 library(getopt)
+library(parallel)
 
 spec <- matrix(c(
     "tumor.coverage", "a", 1, "character",
@@ -20,7 +21,8 @@ spec <- matrix(c(
     "cnv.txt", "n", 1, "character",
     "exon.lrr.txt", "o", 1, "character",
     "segment.copynumber.txt", "p", 1, "character",
-    "segment.lrr.txt", "q", 1, "character"
+    "segment.lrr.txt", "q", 1, "character",
+    "ncpus", "s", 1, "integer"
 ), byrow=TRUE, ncol=4)
 opt <- getopt(spec)
 
@@ -59,6 +61,7 @@ if (is.null(opt$spec.segment)) { opt$spec.segment <- 0.99 }
 if (is.null(opt$opt.segment)) { opt$opt.segment <- "auc" }
 if (is.null(opt$admixture.rate)) { opt$admixture.rate <- 0.3 }
 if (is.null(opt$coverage.cutoff)) { opt$coverage.cutoff <- 5 }
+if (is.null(opt$ncpus)) { opt$ncpus <- 1 }
 
 # Warn when in violation of the user guide.
 if (opt$spec.exon < 0.9999 | opt$opt.exon != "spec") {
@@ -75,11 +78,11 @@ if ((opt$opt.exon == "auc" & opt$sens.exon != opt$spec.exon) |
 # Read in coverage.
 read.coverage <- function (file.name) {
     if (grepl(".bz2$", file.name))
-        read.coverage.gatk(bzfile(opt$tumor.coverage))
+        read.coverage.gatk(bzfile(file.name))
     else if (grepl(".gz$", file.name))
-        read.coverage.gatk(gzfile(opt$tumor.coverage))
+        read.coverage.gatk(gzfile(file.name))
     else
-        read.coverage.gatk(opt$tumor.coverage)
+        read.coverage.gatk(file.name)
 }
 tumor.coverage <- read.coverage(opt$tumor.coverage)
 normal.coverage <- read.coverage(opt$normal.coverage)
@@ -87,12 +90,12 @@ normal.coverage <- read.coverage(opt$normal.coverage)
 # Run ExomeCNV.
 options(bitmapType="cairo")
 logR <- calculate.logR(normal.coverage, tumor.coverage)
-eCNV <- do.call(rbind, lapply(opt$chr.list, function (chr) {
+eCNV <- do.call(rbind, mclapply(opt$chr.list, function (chr) {
     idx <- normal.coverage$chr == chr
     classify.eCNV(normal=normal.coverage[idx,], tumor=tumor.coverage[idx,],
                   logR=logR[idx], min.spec=opt$spec.exon, min.sens=opt$sens.exon,
                   option=opt$opt.exon, c=opt$admixture.rate, l=opt$read.length)
-}))
+}, mc.cores=opt$ncpus))
 cnv <-  multi.CNV.analyze(normal.coverage, tumor.coverage, logR=logR,
                           all.cnv.ls=list(eCNV),
                           coverage.cutoff=opt$coverage.cutoff,
@@ -108,10 +111,10 @@ copy.compress <- function (src, dest) {
             ext <- regmatches(dest, regexpr("[.][^.]+$", dest))
             base <- sub(ext, "", dest)
             compress <- ifelse(ext == ".bz2", "bzip2", "gzip")
-            file.rename(src, base)
+            file.copy(src, base)
             system2(compress, args=c(base))
         } else {
-            file.rename(src, dest)
+            file.copy(src, dest)
         }
     }
 }
