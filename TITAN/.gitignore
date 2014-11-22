@@ -1,0 +1,9 @@
+intermediate
+logs
+normal-bam
+tumour-bam
+titan_input.txt
+TITANRunner
+segments.tsv
+purity.tsv
+titan-exome

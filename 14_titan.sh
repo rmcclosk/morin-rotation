@@ -17,7 +17,7 @@ for LINE in $(tail -n +2 $METADATA | grep -v cell-line); do
                                          --project-path $OUT_DIR \
                                          -c $HOME/morin-rotation/titan_config.cfg
         if [[ $? -eq 0 ]]; then
-            mv $OUT_DIR/$TUMOR_R* $OUT_DIR/$TUMOR
+            mv $OUT_DIR/${TUMOR}_R* $OUT_DIR/$TUMOR
         fi
     fi
 done
