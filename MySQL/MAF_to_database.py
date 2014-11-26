@@ -27,33 +27,40 @@ cursor = db.db.cursor()
 library_id = get_library(cursor, args.sample, args.type)
 reader = csv.DictReader(open(args.maf), delimiter="\t")
 
-query = """INSERT INTO mutation (library_id, type, region, chromosome,
-                                 position, gene, protein_altering, base_change,
-                                 annotation, external_gene_id, transcripts,
-                                 reference_base_count, nonreference_base_count,
-                                 cdna_change, known_identifiers, ref_base, 
-                                 nref_base)
-           VALUES (%(library_id)s, %(type)s, %(region)s, %(chromosome)s,
-                   %(position)s, %(gene)s, %(protein_altering)s, 
-                   %(base_change)s, %(annotation)s, %(external_gene_id)s,
-                   %(transcripts)s, %(reference_base_count)s, 
-                   %(nonreference_base_count)s, %(cdna_change)s,
-                   %(known_identifiers)s, %(ref_base)s, %(nref_base)s)"""
-
 for row in reader:
     params = {"library_id": library_id, "type": "snv", "region": "CDS"}
     params["chromosome"] = row["Chromosome"]
-    params["position"] = row["Start_position"]
-    params["gene"] = row["Entrez_Gene_Id"]
-    params["protein_altering"] = "no" if row["Protein_Change"] == "" else "yes"
-    params["base_change"] = "{}>{}".format(row["Reference_Allele"], row["Tumor_Seq_Allele1"])
     params["annotation"] = row["Protein_Change"]
-    params["external_gene_id"] = row["Hugo_Symbol"]
-    params["transcripts"] = row["Annotation_Transcript"]
-    params["reference_base_count"] = row["t_ref_count"]
-    params["nonreference_base_count"] = row["t_alt_count"]
-    params["cdna_change"] = row["cDNA_Change"]
-    params["known_identifiers"] = row["dbSNP_RS"].replace("&", ",")
-    params["ref_base"] = row["Reference_Allele"]
-    params["nref_base"] = row["Tumor_Seq_Allele1"]
-    cursor.execute(query, params)
+    transcript = row["Annotation_Transcript"]
+    ref_base = row["Reference_Allele"]
+    nref_base = row["Tumor_Seq_Allele1"]
+    effect = row["Variant_Classification"].lower()
+
+    # SNV
+    if len(ref_base) == len(nref_base):
+        params["position"] = row["Start_position"]
+        params["ensembl_gene_id"] = row["Entrez_Gene_Id"]
+        params["base_change"] = "{}>{}".format(ref_base, nref_base)
+        params["protein_altering"] = row["Protein_Change"] != ""
+        params["cdna_change"] = row["cDNA_Change"]
+        params["identifiers"] = row["dbSNP_RS"].replace("&", ",")
+        params["splice_site"] = row["Variant_Classification"] == "Splice_Site"
+        params["tumour_ref"] = row["t_ref_count"]
+        params["tumour_nref"] = row["t_alt_count"]
+        params["normal_ref"] = 0
+        params["normal_nref"] = 0
+    #def addMutation(self, library_id, chromosome, position, ensembl_gene_id, base_change, status=None, protein_altering=None, annotation=None, validation_outcome=None, cdna_change = None, to_validate=None,identifiers=None, splice_site=None, mutation_seq_probability=None, triplet=None, tumour_ref = None, tumour_nref = None, normal_ref = None, normal_nref = None,transcript=None,sift_score=None,polyphen_score=None,mutation_ass_score=None,ref_base=None,nref_base=None):
+        db.addMutation(library_id, chromosome, position, ensembl_gene_id,
+                       base_change, protein_altering=protein_altering,
+                       annotation=annotation, cdna_change=cdna_change,
+                       identifiers=identifiers, splice_site=splice_site,
+                       mutation_seq_probability=0, tumour_ref=tumour_ref,
+                       tumour_nref=tumour_nref, transcript=transcript,
+                       ref_base=ref_base, nref_base=nref_base)
+    # indel
+    else:
+        params["start"] = row["Start_position"]
+        params["end"] = row["End_Position"]
+        params["ensembl_id"] = row["Entrez_Gene_Id"]
+        addIndel(library_id, chromosome, start, end, ref_base, alt_base, effect,
+                 annotation, ensembl_id=ensembl_gene_id)
