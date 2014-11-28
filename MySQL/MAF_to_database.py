@@ -1,6 +1,14 @@
 #!/usr/bin/env python
 
-# Import MAF files into the database.
+# Import MAF files into the database. Optionally, obtain counts of reference
+# and non-reference alleles from a tumor and/or normal BAM file.
+#
+# This script requires the pysam and BioPython libraries to be installed. 
+
+# There is code in here to count allele frequencies for small indels, which is
+# currently unused, since the indel table in the database does not have fields
+# for allele counts. Please leave the code in, since it will probably be needed
+# in the future.
 
 import pysam
 import argparse
@@ -12,6 +20,10 @@ import tempfile
 import sys
 import re
 from Bio import SeqIO
+
+###############################################################################
+# Functions for counting alleles                                              #
+###############################################################################
 
 def num_mismatches(ref, query):
     """Number of matches between query and reference."""
@@ -111,14 +123,135 @@ def count_bases(samfile, reffile, chrom, pos):
     pileup = samfile.pileup(chrom, start, end, fastafile=reffile)
     return count_bases_pileup(pileup, pos)
 
+################################################################################
+# Functions for parsing the MAF file                                           #
+################################################################################
+
+def get_protein_change(maf_row):
+    """Parse the protein change from a MAF row"""
+    try:
+        prot_change = maf_row["Protein_Change"]
+    except KeyError:
+        prot_change = maf_row["HGVSp_Short"]
+    return prot_change.replace("p.", "").replace("=", "")
+
+def get_nref_allele(maf_row):
+    """Get the nonreference allele from a MAF row"""
+    ref_allele = maf_row["Reference_Allele"]
+    if maf_row["Tumor_Seq_Allele1"] != ref_allele:
+        return maf_row["Tumor_Seq_Allele1"]
+    return maf_row["Tumor_Seq_Allele2"]
+    
+def is_snv(maf_row):
+    """True if this row describes a SNV, False for an indel."""
+    ref_allele = maf_row["Reference_Allele"]
+    nref_allele = get_nref_allele(maf_row)
+    return (len(ref_allele) == len(nref_allele) and 
+            "-" not in [ref_allele, nref_allele])
+
+def get_ensembl_id(maf_row):
+    """Get the Ensembl gene ID for a MAF row."""
+    if row["Entrez_Gene_Id"].startswith("ENSG"):
+        return row["Entrez_Gene_Id"]
+    return row["Gene"]
+
+def get_base_change(maf_row):
+    """Get the base change from a MAF row describing a SNV"""
+    ref_allele = maf_row["Reference_Allele"]
+    nref_allele = get_nref_allele(maf_row)
+    return "{}>{}".format(ref_allele, nref_allele)
+
+def get_cdna_change(maf_row):
+    """Get the cDNA change from a MAF row describing a SNV"""
+    try:
+        return row["cDNA_Change"]
+    except KeyError:
+        cdna_ptn = "c[.](\d+)([ATCG])>([ATCG])"
+        match = re.search(cdna_ptn, maf_row["HGVSc"])
+        if match:
+            return "{}{}{}".format(*match.group(2,1,3))
+        return ""
+
+def get_triplet(maf_row):
+    """Get the triplet context from a MAF row describing a SNV"""
+    try:
+        return maf_row["Codons"].split("/")[0]
+    except KeyError:
+        return ""
+    
+def get_transcript(maf_row):
+    """Get the transcript from a MAF row"""
+    try:
+        return row["Annotation_Transcript"]
+    except KeyError:
+        return row["Transcript_ID"]
+
+def get_identifiers(maf_row):
+    """Get all known identifiers from a MAF row"""
+    try:
+        ids = row["Existing_variation"].replace(",", "&")
+    except KeyError:
+        ids = row["dbSNP_RS"]
+    ids = ids.replace(",", " ").replace(";", " ")
+    ids = ids.split()
+    return "&".join(id for id in ids if id != "novel")
+
+def get_codon_pos(maf_row):
+    """Get the codon position of a MAF row representing an indel"""
+    try:
+        positions = re.findall("\d+", maf_row["Transcript_Position"])
+        positions = [int(int(i)/3) for i in positions]
+    except KeyError:
+        positions = [int(i) for i in re.findall("\d+", maf_row["HGVSc"])]
+
+    if len(positions) == 1:
+        return positions[0]
+    else:
+        return "{}-{}".format(min(positions), max(positions))
+        
+def get_effect(maf_row):
+    """Get the effect from a MAF row representing an indel"""
+    try:
+        return maf_row["Consequence"]
+    except KeyError:
+        indel_class = maf_row["Variant_Classification"]
+        if indel_class.startswith("Frame_Shift"):
+            return "frameshift_variant"
+        elif indel_class == "In_Frame_Del":
+            return "inframe_deletion"
+        elif indel_class == "In_Frame_Ins":
+            return "inframe_insertion"
+        else:
+            msg = "Inserting NULL effect for an indel of type {}"
+            warnings.warn(msg.format(indel_class))
+            return ""
+
+def get_allele_counts(maf_row):
+    """Get allele counts from a row of a MAF file
+
+
+    Returns a 4-tuple (normal_ref, normal_nref, tumour_ref, tumour_nref)"""
+    counts = []
+    for key in ["n_ref_count", "n_alt_count", "t_ref_count", "t_alt_count"]:
+        try:
+            counts.append(int(maf_row[key]))
+        except (KeyError, ValueError):
+            counts.append(0)
+    return counts
+         
+
+################################################################################
+# Main                                                                         #
+################################################################################
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="upload MAF file to database")
-    parser.add_argument("maf", metavar="M", help="MAF file to add to database")
-    parser.add_argument("library_id", metavar="L", type=int, help="library ID")
-    parser.add_argument("db_host", metavar="H", help="database host")
-    parser.add_argument("db_name", metavar="D", help="database name")
-    parser.add_argument("db_user", metavar="U", help="database user")
-    parser.add_argument("db_pass", metavar="P", help="database password")
+    parser.add_argument("maf", help="MAF file to add to database")
+    parser.add_argument("library_id", type=int, help="library ID")
+    parser.add_argument("db_host", help="database host")
+    parser.add_argument("db_name", help="database name")
+    parser.add_argument("db_user", help="database user")
+    parser.add_argument("db_pass", help="database password")
     parser.add_argument("--normal-bam", dest="normal_bam", help="normal BAM file")
     parser.add_argument("--tumour-bam", dest="tumour_bam", help="tumour BAM file")
     parser.add_argument("--reference", dest="reference", help="reference FASTA file")
@@ -130,6 +263,7 @@ if __name__ == "__main__":
             database_user=args.db_user,
             database_password=args.db_pass
     )
+    cursor = db.db.cursor()
 
     if args.normal_bam or args.tumour_bam:
         if args.reference:
@@ -143,43 +277,55 @@ if __name__ == "__main__":
     if args.tumour_bam:
         samfiles["tumour"] = pysam.Samfile(args.tumour_bam)
 
-    cursor = db.db.cursor()
     reader = csv.DictReader((line for line in open(args.maf) if not line.startswith("#")), delimiter="\t")
     num_ptn = re.compile("\d+")
     cdna_ptn = re.compile("c[.](?P<pos>\d+)(?P<ref>[ATCG])>(?P<alt>[ATCG])")
     
+    allowed_classes = ["Frame_Shift_Del",
+                       "Frame_Shift_Ins",
+                       "In_Frame_Del", 
+                       "In_Frame_Ins", 
+                       "Missense_Mutation", 
+                       "Nonsense_Mutation", 
+                       "Silent", 
+                       "Splice_Site", 
+                       "Translation_Start_Site", 
+                       "Nonstop_Mutation", 
+                       "RNA", 
+                       "Targeted_Region", 
+                       "De_novo_Start_InFrame", 
+                       "De_novo_Start_OutOfFrame"]
     for row in reader:
-        params = {"library_id": args.library_id}
-        params["chromosome"] = row["Chromosome"]
-        ref_base = row["Reference_Allele"]
-        nref_base = row["Tumor_Seq_Allele2"]
-        protein_change = row["HGVSp_Short"].replace("p.", "").replace("=", "")
+        variant_class = row["Variant_Classification"]
+        if not variant_class in allowed_classes:
+            warnings.warn("Skipping mutation of type {}".format(variant_class))
+            continue
+
+        params = {"library_id": args.library_id, 
+                  "chromosome": row["Chromosome"]}
     
         # SNV
-        if len(ref_base) == len(nref_base) and ref_base != "-" and nref_base != "-":
-            protein_change = row["HGVSp_Short"].replace("p.", "").replace("=", "")
-            params["annotation"] = protein_change
-            params["position"] = row["Start_Position"]
-            params["ensembl_gene_id"] = row["Entrez_Gene_Id"]
-            params["base_change"] = "{}>{}".format(ref_base, nref_base)
-            params["protein_altering"] = protein_change != ""
-            match = cdna_ptn.search(row["HGVSc"])
-            if match:
-                params["cdna_change"] = "{}{}{}".format(match.group("ref"), match.group("pos"), match.group("alt"))
-            else:
-                params["cdna_change"] = ""
-            print(row["HGVSc"], params["cdna_change"])
-            params["identifiers"] = row["dbSNP_RS"].replace("&", ",")
-            params["splice_site"] = row["Variant_Classification"] == "Splice_Site"
-            params["mutation_seq_probability"] = 0
-            params["sift_score"] = 0
-            params["polyphen_score"] = 0
-            params["mutation_ass_score"] = 0
-    
-            params["tumour_ref"] = row["t_ref_count"]
-            params["tumour_nref"] = row["t_alt_count"]
-            params["normal_ref"] = row["n_ref_count"]
-            params["normal_nref"] = row["n_alt_count"]
+        if is_snv(row):
+            ref_base = row["Reference_Allele"]
+            nref_base = get_nref_allele(row)
+            protein_change = get_protein_change(row)
+            params.update({"position": row["Start_Position"],
+                           "ensembl_gene_id": get_ensembl_id(row),
+                           "base_change": get_base_change(row),
+                           "protein_altering": protein_change != "",
+                           "annotation": protein_change,
+                           "cdna_change": get_cdna_change(row),
+                           "identifiers": get_identifiers(row),
+                           "splice_site": variant_class == "Splice_Site",
+                           "triplet": get_triplet(row),
+                           "sift_score": 0,
+                           "polyphen_score": 0,
+                           "mutation_ass_score": 0,
+                           "transcript": get_transcript(row)})
+        
+            keys = ["normal_ref", "normal_nref", "tumour_ref", "tumour_nref"]
+            params.update(dict(zip(keys, get_allele_counts(row))))
+
             for sample, samfile in samfiles.items():
                 ref_key = "{}_ref".format(sample)
                 alt_key = "{}_nref".format(sample)
@@ -187,31 +333,17 @@ if __name__ == "__main__":
                     chrom = row["Chromosome"]
                     pos = row["Start_Position"]
                     counts = count_bases(samfile, reffile, chrom, int(pos))
-                    params[ref_key] = counts[row["Reference_Allele"]]
-                    params[alt_key] = counts[row["Tumor_Seq_Allele2"]]
+                    params[ref_key] = counts[ref_base]
+                    params[alt_key] = counts[nref_base]
             db.addMutation(**params)
     
         # indel
         else:
-            if protein_change == "":
-                params["annotation"] = ""
-            else:
-                params["annotation"] = num_ptn.search(protein_change).group()
-
-            if row["Entrez_Gene_Id"] != "0":
-                query = "SELECT id FROM gene WHERE ensembl_id = '%s'"
-                cursor.execute(query, row["Entrez_Gene_Id"])
-                params["ensembl_id"] = cursor.fetchone()[0]
-            else:
-                params["ensembl_id"] = None
-
-            params["start"] = row["Start_Position"]
-            params["end"] = row["End_Position"]
-            params["ref"] = ref_base
-            params["alt"] = nref_base
-            # TODO: update the allowed values of indel.effect in the database
-            if row["Consequence"] in ('frameshift_variant','inframe_deletion','inframe_insertion','splice_donor_variant','splice_acceptor_variant','coding_sequence_variant'):
-                params["effect"] = row["Consequence"]
-            else:
-                params["effect"] = ""
+            params.update({"annotation": get_codon_pos(row),
+                           "ensembl_id": get_ensembl_id(row),
+                           "start": row["Start_Position"],
+                           "end": row["End_Position"],
+                           "ref": row["Reference_Allele"],
+                           "alt": get_nref_allele(row),
+                           "effect": get_effect(row)})
             db.addIndel(**params)
