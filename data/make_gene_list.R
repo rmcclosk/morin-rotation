@@ -16,18 +16,19 @@ gene.names <- read.table(names.url, header=T, sep="\t", col.names=c("name"))
 
 loci.url <- paste0("http://hgdownload.cse.ucsc.edu/goldenPath/",
                    "hg19/database/refGene.txt.gz")
-classes <- c(rep("NULL", 2), "character", rep("NULL", 3), rep("integer", 2), 
-             rep("NULL", 4), "character", rep("NULL", 3))
-names <- c(rep("NULL", 2), "chr", rep("NULL", 3), "start", "end",
-           rep("NULL", 4), "name", rep("NULL", 3))
+classes <- c(rep("NULL", 2), "character", "NULL", rep("integer", 2), 
+             rep("NULL", 6), "character", rep("NULL", 3))
+names <- c(rep("NULL", 2), "chr", "NULL", "start", "end",
+           rep("NULL", 6), "name", rep("NULL", 3))
 
 # stackoverflow.com/questions/9548630/read-gzipped-csv-directly-from-a-url-in-r
 con <- textConnection(readLines(gzcon(url(loci.url))))
 gene.loci <- read.table(con, colClasses=classes, col.names=names)
 gene.loci <- merge(gene.loci, gene.names)
-gene.loci <- merge(gene.loci, aggregate(start~name, gene.loci, min))
-gene.loci <- merge(gene.loci, aggregate(end~name, gene.loci, max))
-gene.loci <- unique(gene.loci)
-gene.loci$chr <- sub("chr", "", gene.loci$chr)
+gene.loci$chr <- factor(sub("chr", "", gene.loci$chr), levels=c(1:22, "X", "Y"))
+gene.loci <- merge(aggregate(start~chr+name, gene.loci, min),
+                   aggregate(end~chr+name, gene.loci, max))
+gene.loci <- gene.loci[,c("chr", "start", "end", "name")]
+gene.loci <- gene.loci[order(gene.loci$chr, gene.loci$start),]
 
-write.table(gene.loci, file="genes.tsv", row.names=F, quote=F, sep="\t")
+write.table(gene.loci, file="genes.bed", col.names=F, row.names=F, quote=F, sep="\t")
