@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import csv
 import time
@@ -14,11 +14,6 @@ writer = csv.writer(out_handle, delimiter="\t")
 start = False
 for i, row in enumerate(reader):
     gene = row[-1]
-    if gene == "PRRX2":
-        start = True
-
-    if not start: continue
-
     print(gene)
 
     term = "colorectal cancer {}".format(gene)

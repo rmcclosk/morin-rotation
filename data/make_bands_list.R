@@ -14,4 +14,6 @@ cyto.band$band <- sub("[.].*", "", cyto.band$locus)
 band.starts <- aggregate(start~chr+band, cyto.band, min)
 band.ends <- aggregate(end~chr+band, cyto.band, max)
 bands <- merge(band.starts, band.ends)
-write.table(bands, "bands.tsv", sep="\t", row.names=F, quote=F)
+bands$name <- "band"
+bands <- bands[,c("chr", "start", "end", "band", "locus")]
+write.table(bands, "bands.bed", sep="\t", col.names=F, row.names=F, quote=F)
