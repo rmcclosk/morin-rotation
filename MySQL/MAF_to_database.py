@@ -12,7 +12,7 @@
 
 import pysam
 import argparse
-import cancerGenome
+import cancer_db as cancerGenome
 import csv
 import warnings
 import subprocess
@@ -200,7 +200,7 @@ def get_codon_pos(maf_row):
     """Get the codon position of a MAF row representing an indel"""
     try:
         positions = re.findall("\d+", maf_row["Transcript_Position"])
-        positions = [int(int(i)/3) for i in positions]
+        positions = [int((int(i)-1)/3)+1 for i in positions]
     except KeyError:
         positions = [int(i) for i in re.findall("\d+", maf_row["HGVSc"])]
 
