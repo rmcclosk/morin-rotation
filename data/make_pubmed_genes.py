@@ -3,6 +3,7 @@
 import csv
 import time
 import socket
+import sys
 from pprint import pprint
 from Bio import Entrez
 Entrez.email = "rmccloskey@alumni.ubc.ca"
@@ -25,7 +26,7 @@ for i, row in enumerate(reader):
             break
         except socket.gaierror:
             time.sleep(1)
-            print("Retrying")
+            sys.stderr.write("Retrying\n")
             continue
 
     try:

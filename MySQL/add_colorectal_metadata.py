@@ -20,7 +20,8 @@ cursor = db.db.cursor()
 f = "/extscratch/morinlab/shared/qcroc_colorectal/exome/sample_metadata.txt"
 reader = csv.DictReader(open(f), delimiter="\t")
 for row in reader:
-    if row["patient_id"] in ["R3", "HT29"]: continue
+    if row["patient_id"] == "R3":
+        row["patient_id"] = "HT29"
 
     db.addPatient(row["patient_id"])
     query = "UPDATE patient SET sex='{}' WHERE res_id='{}'".format(row["sex"][0], row["patient_id"])
@@ -28,3 +29,12 @@ for row in reader:
 
     sample_id = db.addSample(format(row["sample_id"]), "'{}'".format(row["patient_id"]), "primary")
     db.addLibrary(format(row["gsc_exome_library_id"]), "exome", sample_id)
+
+f = "/extscratch/morinlab/shared/qcroc_colorectal/genome/sample_metadata.txt"
+reader = csv.DictReader(open(f), delimiter="\t")
+for row in reader:
+    if row["patient_id"] == "R3":
+        row["patient_id"] = "HT29"
+
+    sample_id = db.addSample(format(row["sample_id"]), "'{}'".format(row["patient_id"]), "primary")
+    db.addLibrary(format(row["gsc_genome_library_id"]), "genome", sample_id)
