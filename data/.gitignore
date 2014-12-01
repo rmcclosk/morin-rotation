@@ -1,2 +1,2 @@
-bands.tsv
-genes.tsv
+*.tsv
+*.bed
