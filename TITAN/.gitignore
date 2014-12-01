@@ -1,9 +1,10 @@
 intermediate
 logs
-normal-bam
-tumour-bam
+bams
 titan_input.txt
 TITANRunner
 segments.tsv
 purity.tsv
 titan-exome
+titan.seg
+titan

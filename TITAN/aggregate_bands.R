@@ -17,23 +17,23 @@ do.intersect <- function (bed.file.1, bed.file.2, data.cols) {
     res
 }
 
-#bands <- do.call(rbind, lapply(bed.files, function (f) {
-#    res <- merge(do.intersect(f, "bands.bed", "copy.number"),
-#                 do.intersect("bands.bed", f, "band"))
-#    res <- subset(res, end - start > 1000)
-#    dups <- aggregate(copy.number~band, res, function (x) any(x > 2))
-#    colnames(dups)[2] <- "dup"
-#    dels <- aggregate(copy.number~band, res, function (x) any(x < 2))
-#    colnames(dels)[2] <- "del"
-#    res <- merge(dups, dels)
-#    res$sample <- strsplit(basename(f), ".", fixed=T)[[1]][1]
-#    if (res$sample == "R3")
-#        res$patient <- "cell-line"
-#    else
-#        res$patient <- paste0("01-", strsplit(basename(f), "-")[[1]][3])
-#    res
-#}))
-#write.table(bands, "tmp.dat", row.names=F, col.names=F)
+bands <- do.call(rbind, lapply(bed.files, function (f) {
+    res <- merge(do.intersect(f, "bands.bed", "copy.number"),
+                 do.intersect("bands.bed", f, "band"))
+    res <- subset(res, end - start > 1000)
+    dups <- aggregate(copy.number~band, res, function (x) any(x > 2))
+    colnames(dups)[2] <- "dup"
+    dels <- aggregate(copy.number~band, res, function (x) any(x < 2))
+    colnames(dels)[2] <- "del"
+    res <- merge(dups, dels)
+    res$sample <- strsplit(basename(f), ".", fixed=T)[[1]][1]
+    if (res$sample == "R3")
+        res$patient <- "cell-line"
+    else
+        res$patient <- paste0("01-", strsplit(basename(f), "-")[[1]][3])
+    res
+}))
+write.table(bands, "tmp.dat", row.names=F, col.names=F)
 
 bands <- read.table("tmp.dat")
 colnames(bands) <- c("band", "dup", "del", "sample", "patient")

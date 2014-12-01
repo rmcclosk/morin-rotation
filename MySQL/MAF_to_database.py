@@ -12,7 +12,7 @@
 
 import pysam
 import argparse
-import cancer_db as cancerGenome
+import cancerGenome
 import csv
 import warnings
 import subprocess

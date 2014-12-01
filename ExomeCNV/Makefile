@@ -20,7 +20,7 @@ $(SEG_DIR)/%.seg: $(SEG_DIR)/%.segment.lrr.txt.bz2
 	echo -e "Chromosome\tStart\tEnd\tNum_Probes\tSegment_Mean" > $@
 	bzcat $^ | awk '{print substr($$1, 4)"\t"$$2"\t"$$3"\t"($$3-$$2)/1000"\t"$$4}' >> $@
 
-$(SEG_DIR)/%.segment.copynumber.txt.bz2: $(SEG_DIR)/%.sh
+$(SEG_DIR)/%.segment.lrr.txt.bz2: $(SEG_DIR)/%.sh
 	qsub -V -sync yes -cwd -S /bin/sh -N ExomeCNV -pe ncpus $(NCPUS) \
 	     -o $(LOG_DIR)/$(notdir $(basename $^)).stdout \
 		 -e $(LOG_DIR)/$(notdir $(basename $^)).stderr \

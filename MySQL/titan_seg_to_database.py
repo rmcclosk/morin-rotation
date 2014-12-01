@@ -1,51 +1,15 @@
 #!/usr/bin/env python
 
-# Import a SEG file containing CNVs into the database.
-# The SEG file must have the format specified here: 
-# http://www.broadinstitute.org/igv/SEG
-# In particular, the fifth column should be the copy number.
+# Import a titan *_segs.txt file containing CNVs and LOH segments into the
+# database.
 
 import argparse
-import cancerGenome
+import cancer_db as cancerGenome
 import csv
-from db_utils import *
-
-def addLOH(cursor, library_id, chr, start, end, copy_number, loh_state):
-    """Add a LOH event to the database"""
-    event_id = addEvent(cursor, library_id, "loh")
-    query = """INSERT INTO loh (event_id, chromosome, segment_start, 
-                                segment_end, size, copy_number, loh_state)
-               VALUES (%s, %s, %s, %s, %s, %s, %s)"""
-    size = int(end)-int(start)
-    params = (event_id, chr, start, end, size, copy_number, loh_state)
-    try:
-        cursor.execute(query, params)
-        return cursor.lastrowid
-    except:
-        print("Couldn't add LOH")
-        query = "DELETE FROM event WHERE id = %s"
-        cursor.execute(query, event_id)
-        return None
-
-def addCNV(cursor, library_id, chr, start, end, copy_number, cnv_type):
-    """Add a copy number variation to the database"""
-    event_id = addEvent(cursor, library_id, "CNV")
-    query = """INSERT INTO cnv (event_id, chromosome, segment_start, 
-                                segment_end, segment_state, size, type)
-               VALUES (%s, %s, %s, %s, %s, %s, %s)"""
-    size = int(end)-int(start)
-    params = (event_id, chr, start, end, copy_number, size, cnv_type)
-    try:
-        cursor.execute(query, params)
-        return cursor.lastrowid
-    except:
-        print("Couldn't add CNV")
-        query = "DELETE FROM event WHERE id = %s"
-        cursor.execute(query, event_id)
-        return None
+import itertools
 
 if __name__ == "__main__":
-    desc = "Insert CNVs from seg file into database"
+    desc = "Insert CNV and LOH from TITAN *_segs.txt into database"
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("segfile", help="titan *_segs.txt file")
     parser.add_argument("library_id", help="library ID")
@@ -61,16 +25,28 @@ if __name__ == "__main__":
         database_user=args.user,
         database_password=args.password
     )
-    cnv_type = "somatic"
+
     cursor = db.db.cursor()
+    query = "SELECT library_name FROM library WHERE id = %s"
+    cursor.execute(query, args.library_id)
+    library_name = cursor.fetchone()[0]
+    print(args.library_id)
+    db.loadCNVs(args.segfile, library_name=library_name, file_format="titan")
+
     reader = csv.DictReader(open(args.segfile), delimiter="\t")
     next(reader) # skip header
-    for row in reader:
-        sample = row["Sample"]
-        chr = row["Chromosome"]
-        start = row["Start_Position(bp)"]
-        end = row["End_Position(bp)"]
-        copy_number = row["Copy_Number"]
-        loh_state = row["TITAN_call"]
-        addCNV(cursor, args.library_id, chr, start, end, copy_number, cnv_type)
-        addLOH(cursor, args.library_id, chr, start, end, copy_number, loh_state)
+
+    params = {"library_id": args.library_id}
+
+    filter_fun = lambda r: r["TITAN_call"] != "HET"
+    for row in itertools.ifilter(filter_fun, reader):
+        params.update({"chromosome": row["Chromosome"],
+                       "segment_start": row["Start_Position(bp)"],
+                       "segment_end": row["End_Position(bp)"],
+                       "size": row["Length(bp)"],
+                       "bin_count": 0, # don't know what this is
+                       "copy_number": row["Copy_Number"],
+                       "loh_state": row["TITAN_call"],
+                       "Major_allele_count": row["MajorCN"],
+                       "minor_allele_count": row["MinorCN"]})
+        db.addLohSegment(**params)
