@@ -2,6 +2,7 @@
 
 import csv
 import time
+import socket
 from pprint import pprint
 from Bio import Entrez
 Entrez.email = "rmccloskey@alumni.ubc.ca"
@@ -13,7 +14,7 @@ writer = csv.writer(out_handle, delimiter="\t")
 start = False
 for i, row in enumerate(reader):
     gene = row[-1]
-    if gene == "FAM201A":
+    if gene == "PRRX2":
         start = True
 
     if not start: continue
@@ -21,9 +22,16 @@ for i, row in enumerate(reader):
     print(gene)
 
     term = "colorectal cancer {}".format(gene)
-    handle = Entrez.esearch(db="pubmed", term=term)
-    record = Entrez.read(handle)
-    handle.close()
+    while True:
+        try:
+            handle = Entrez.esearch(db="pubmed", term=term)
+            record = Entrez.read(handle)
+            handle.close()
+            break
+        except socket.gaierror:
+            time.sleep(1)
+            print("Retrying")
+            continue
 
     try:
         record["ErrorList"]
@@ -33,4 +41,3 @@ for i, row in enumerate(reader):
     
     if i % 10 == 0:
         out_handle.flush()
-    time.sleep(1)
