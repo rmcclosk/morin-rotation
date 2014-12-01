@@ -48,30 +48,29 @@ if __name__ == "__main__":
     desc = "Insert CNVs from seg file into database"
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("segfile", help="titan *_segs.txt file")
-    parser.add_argument("type", help="mutation type", choices=MUTATION_TYPES)
-    parser.add_argument("libtype", help="library type", choices=LIBRARY_TYPES)
+    parser.add_argument("library_id", help="library ID")
     parser.add_argument("database", help="database name")
+    parser.add_argument("host", help="database host")
     parser.add_argument("user", help="database user")
     parser.add_argument("password", help="database password")
     args = parser.parse_args()
     
     db = cancerGenome.cancerGenomeDB(
         database_name=args.database,
-        database_host="jango.bcgsc.ca",
+        database_host=args.host,
         database_user=args.user,
         database_password=args.password
     )
+    cnv_type = "somatic"
     cursor = db.db.cursor()
     reader = csv.DictReader(open(args.segfile), delimiter="\t")
     next(reader) # skip header
     for row in reader:
         sample = row["Sample"]
-        library_id = get_library(cursor, sample, args.libtype)
         chr = row["Chromosome"]
         start = row["Start_Position(bp)"]
         end = row["End_Position(bp)"]
         copy_number = row["Copy_Number"]
-        cnv_type = args.type
         loh_state = row["TITAN_call"]
-        addCNV(cursor, library_id, chr, start, end, copy_number, cnv_type)
-        addLOH(cursor, library_id, chr, start, end, copy_number, loh_state)
+        addCNV(cursor, args.library_id, chr, start, end, copy_number, cnv_type)
+        addLOH(cursor, args.library_id, chr, start, end, copy_number, loh_state)
