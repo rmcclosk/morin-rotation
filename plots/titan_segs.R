@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
 options(warn=1)
-#library(ggplot2)
+library(ggplot2)
 
 all.sample.groups <- function (samples, time.points) {
     if (length(unique(time.points)) == 1)
@@ -16,19 +16,17 @@ all.sample.groups <- function (samples, time.points) {
 }
 
 plot.segs.trappings <- function (seg.plot) {
-    seg.plot +
+}
+
+plot.segs <- function (segs) {
+    ggplot(segs, aes(x=start, y=copy.number, color=`time point`)) +
         theme_bw() +
         ylab("copy number") +
         xlab("chromosome") +
         theme(axis.ticks.x=element_blank()) + #, legend.position="top", legend.box="horizontal") +
         geom_vline(data=chrs, aes(xintercept=chr.start), color="grey", linetype="dashed") +
-        scale_x_continuous(breaks=chrs$midpoint, labels=c(1:22, "X"), limits=c(0, genome.end), expand=c(0, 0))
-}
-
-plot.segs <- function (segs) {
-    p <- ggplot(segs, aes(x=start, y=copy.number, color=`time point`))
-    p <- plot.segs.trappings(p)
-    p + geom_segment(aes(xend=end, yend=copy.number, size=prevalence)) +
+        scale_x_continuous(breaks=chrs$midpoint, labels=c(1:22, "X"), limits=c(0, genome.end), expand=c(0, 0)) +
+        geom_segment(aes(xend=end, yend=copy.number, size=prevalence)) +
         ggtitle(segs[1, "patient"])
 }
 
@@ -70,7 +68,7 @@ by(segs, segs$patient, function (pat.segs) {
     groups <- all.sample.groups(samples, time.points)
     pdf(file.path("titan-segs", paste0(by.patient, ".pdf")), width=12, height=5)
     apply(groups, 1, function (sample.group) {
-        plot.segs(subset(pat.segs, sample %in% sample.group))
+        print(plot.segs(subset(pat.segs, sample %in% sample.group)))
     })
     dev.off()
 })
