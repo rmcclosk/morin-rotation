@@ -13,11 +13,14 @@ bedtools <- function (cmd, b1, b2, args=NULL) {
     f1 <- write.bed(b1)
     f2 <- write.bed(b2)
     cmd <- paste("bedtools", cmd, args, "-a", f1, "-b", f2)
-    res <- read.table(textConnection(system(cmd, intern=T)))
-    setNames(res, colnames(b1))
+    output <- system(cmd, intern=T)
+    if (length(output) == 0) return (NULL)
+    res <- setNames(read.table(textConnection(output)), colnames(b1))
+    res$chr <- factor(res$chr, levels=c(1:22, "X"))
+    res
 }
 
-plot.segs <- function (segs) {
+plot.segs <- function (segs, title) {
     segs <- merge(segs, chrs)
     segs$start <- segs$start + segs$chr.start
     segs$end <- segs$end + segs$chr.start
@@ -30,12 +33,10 @@ plot.segs <- function (segs) {
         geom_vline(data=chrs, aes(xintercept=chr.start), color="grey", linetype="dashed") +
         scale_x_continuous(breaks=chrs$midpoint, labels=c(1:22, "X"), limits=c(0, genome.end), expand=c(0, 0)) +
         geom_segment(aes(xend=end, yend=copy.number, size=count)) +
-        ggtitle(segs[1, "patient"])
+        ggtitle(title)
 }
 
 metadata <- read.table("../metadata.tsv", header=T, stringsAsFactors=F)
-counts <- subset(aggregate(sample~patient, metadata, length), sample > 1)
-metadata <- droplevels(subset(metadata, patient %in% counts$patient))
 
 chrs <- read.table("../data/chr-lengths.tsv", header=T)
 chrs <- subset(chrs, chr %in% c(1:22, "X"))
@@ -45,22 +46,25 @@ genome.end <- max(chrs$chr.start+chrs$length)
 
 cat("Reading segments... ")
 segs <- read.table("../TITAN/titan.seg", header=T)
-colnames(segs)[colnames(segs) == "chrom"] <- "chr"
-
-segs <- merge(segs, metadata)
-segs[is.na(segs$prevalence),"prevalence"] <- 1
 segs <- subset(segs, copy.number != 2)
+segs <- merge(segs, metadata)
+colnames(segs)[colnames(segs) == "chrom"] <- "chr"
+n.unique <- function (x) length(unique(x))
+keeps <- subset(aggregate(sample~patient, segs, n.unique), sample > 1)
+segs <- droplevels(subset(segs, patient %in% keeps$patient))
+
 bed.cols <- match(c("chr", "start", "end"), colnames(segs))
 data.cols <- setdiff(1:ncol(segs), bed.cols)
 segs <- segs[,c(bed.cols, data.cols)]
 cat("done\n")
+head(segs)
 
-primary <- aggregate(time.point~patient, metadata, min)
+primary <- aggregate(time.point~patient, segs, min)
 
 do.combine <- function (s1, s2) {
-    cat("Merging... ")
-    if (nrow(s1) == 0) return (s2)
-    if (nrow(s2) == 0) return (s1)
+    cat("Merging", nrow(s1), "rows with", nrow(s2), "... ")
+    if (is.null(s1)) return (s2)
+    if (is.null(s2)) return (s1)
     sub1 <- bedtools("subtract", s1, s2)
     sub2 <- bedtools("subtract", s2, s1)
     intersect <- bedtools("intersect", s1, s2)
@@ -84,14 +88,14 @@ all.segs <- lapply(unique(segs$patient), function (by.patient) {
         res
     })
     comb.segs <- Reduce(do.combine, sub.segs)
-    print(head(comb.segs))
     comb.segs <- comb.segs[order(comb.segs$chr, comb.segs$start),]
     pdf(file.path("metastatic-cnv", paste0(by.patient, ".pdf")), width=12, height=5)
-    plot.segs(comb.segs)
+    print(plot.segs(comb.segs, by.patient))
     dev.off()
+    comb.segs
 })
 
 all.segs <- Reduce(do.combine, all.segs)
 pdf(file.path("metastatic-cnv", "all.pdf"), width=12, height=5)
-plot.segs(all.segs)
+print(plot.segs(all.segs, "all"))
 dev.off()

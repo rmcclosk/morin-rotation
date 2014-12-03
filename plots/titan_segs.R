@@ -41,6 +41,8 @@ genome.end <- max(chrs$chr.start+chrs$length)
 segs <- merge(merge(segs, metadata), chrs)
 segs$start <- segs$start + segs$chr.start
 segs$end <- segs$end + segs$chr.start
+segs[is.na(segs$prevalence),"prevalence"] <- 1
+segs[segs$copy.number == 2,"prevalence"] <- 1
 
 # read in genes
 gene.files <- list.files("../genes/by-sample", full.names=T)
