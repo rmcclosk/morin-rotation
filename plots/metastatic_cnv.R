@@ -2,28 +2,13 @@
 
 options(warn=1)
 library(ggplot2)
+source(file="bedUtils.R")
 
-write.bed <- function (bed) {
-    f <- tempfile()
-    write.table(bed, f, col.names=F, row.names=F, quote=F, sep="\t")
-    f
-}
-
-bedtools <- function (cmd, b1, b2, args=NULL) {
-    f1 <- write.bed(b1)
-    f2 <- write.bed(b2)
-    cmd <- paste("bedtools", cmd, args, "-a", f1, "-b", f2)
-    output <- system(cmd, intern=T)
-    if (length(output) == 0) return (NULL)
-    res <- setNames(read.table(textConnection(output)), colnames(b1))
-    res$chr <- factor(res$chr, levels=c(1:22, "X"))
-    res
-}
-
-plot.segs <- function (segs, title) {
+plot.segs <- function (segs, title, width.col) {
     segs <- merge(segs, chrs)
     segs$start <- segs$start + segs$chr.start
     segs$end <- segs$end + segs$chr.start
+    segs$width <- segs[,width.col]
     
     ggplot(segs, aes(x=start, y=copy.number)) +
         theme_bw() +
@@ -32,7 +17,7 @@ plot.segs <- function (segs, title) {
         theme(axis.ticks.x=element_blank()) + #, legend.position="top", legend.box="horizontal") +
         geom_vline(data=chrs, aes(xintercept=chr.start), color="grey", linetype="dashed") +
         scale_x_continuous(breaks=chrs$midpoint, labels=c(1:22, "X"), limits=c(0, genome.end), expand=c(0, 0)) +
-        geom_segment(aes(xend=end, yend=copy.number, size=count)) +
+        geom_segment(aes(xend=end, yend=copy.number, size=width)) +
         ggtitle(title)
 }
 
@@ -57,7 +42,6 @@ bed.cols <- match(c("chr", "start", "end"), colnames(segs))
 data.cols <- setdiff(1:ncol(segs), bed.cols)
 segs <- segs[,c(bed.cols, data.cols)]
 cat("done\n")
-head(segs)
 
 primary <- aggregate(time.point~patient, segs, min)
 
@@ -67,8 +51,12 @@ do.combine <- function (s1, s2) {
     if (is.null(s2)) return (s1)
     sub1 <- bedtools("subtract", s1, s2)
     sub2 <- bedtools("subtract", s2, s1)
-    intersect <- bedtools("intersect", s1, s2)
-    intersect$count <- intersect$count + 1
+    int1 <- bedtools("intersect", s1, s2)
+    int2 <- bedtools("intersect", s2, s1)
+    intersect <- rbind(int1, int2)
+    intersect <- intersect[!duplicated(intersect),]
+    count.cols <- grepl("count", colnames(intersect))
+    intersect[,count.cols] <- intersect[,count.cols] + 1
     cat("done\n")
     rbind(sub1, sub2, intersect)
 }
@@ -90,12 +78,18 @@ all.segs <- lapply(unique(segs$patient), function (by.patient) {
     comb.segs <- Reduce(do.combine, sub.segs)
     comb.segs <- comb.segs[order(comb.segs$chr, comb.segs$start),]
     pdf(file.path("metastatic-cnv", paste0(by.patient, ".pdf")), width=12, height=5)
-    print(plot.segs(comb.segs, by.patient))
+    print(plot.segs(comb.segs, by.patient, "count"))
     dev.off()
+    comb.segs$count.patient <- 1
     comb.segs
 })
 
-all.segs <- Reduce(do.combine, all.segs)
-pdf(file.path("metastatic-cnv", "all.pdf"), width=12, height=5)
-print(plot.segs(all.segs, "all"))
+sample.segs <- Reduce(do.combine, all.segs)
+sample.segs <- sample.segs[order(sample.segs$chr, sample.segs$start),]
+pdf(file.path("metastatic-cnv", "all-samples.pdf"), width=12, height=5)
+print(plot.segs(sample.segs, "all by sample", "count"))
+dev.off()
+
+pdf(file.path("metastatic-cnv", "all-patients.pdf"), width=12, height=5)
+print(plot.segs(sample.segs, "all by patient", "count.patient"))
 dev.off()
