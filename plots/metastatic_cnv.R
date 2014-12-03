@@ -61,6 +61,17 @@ do.combine <- function (s1, s2) {
     rbind(sub1, sub2, intersect)
 }
 
+do.subtract <- function (primary.segs, meta.segs) {
+    sub.segs <- do.call(rbind, lapply(unique(primary.segs$copy.number), function (cn) {
+        s1 <- subset(meta.segs, copy.number == cn)
+        s2 <- subset(primary.segs, copy.number == cn)
+        if (nrow(s1) == 0) return (s2)
+        bedtools("subtract", s1, s2)
+    }))
+    sub.segs$count <- 1
+    sub.segs
+}
+
 all.segs <- lapply(unique(segs$patient), function (by.patient) {
     pat.segs <- subset(segs, patient == by.patient)
     primary.tpt <- subset(primary, patient == by.patient)$time.point
@@ -70,8 +81,7 @@ all.segs <- lapply(unique(segs$patient), function (by.patient) {
     sub.segs <- lapply(metastases, function (m) {
         cat("Subtracting", m, "from primary... ")
         meta.segs <- subset(pat.segs, sample == m)
-        res <- bedtools("subtract", meta.segs, primary.segs)
-        res$count <- 1
+        res <- do.subtract(primary.segs, meta.segs)
         cat("done\n")
         res
     })
