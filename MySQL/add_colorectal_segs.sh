@@ -14,7 +14,8 @@ for SEGS in ../TITAN/titan/*_segs.txt.bz2; do
     # get library id
     QUERY="SELECT id FROM library WHERE sample_id = '$SAMPLE_ID' and library_type = 'exome'"
     LIBRARY_ID=$(mysql $DB -u$USER -p$PASS -s --column-names=FALSE -e "$QUERY")
+    echo $LIBRARY_ID
     bunzip2 $SEGS
-    ./titan_seg_to_database.py $(echo $SEGS | sed s/'.bz2'//) $LIBRARY_ID $DB $HOST $USER $PASS
+    ./titan_seg_to_database.py $(echo $SEGS | sed s/'.bz2'//) $LIBRARY_ID $DB $HOST $USER $PASS > /dev/null
     bzip2 $(echo $SEGS | sed s/'.bz2'//)
 done

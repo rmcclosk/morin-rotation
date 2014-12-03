@@ -70,7 +70,7 @@ def count_indels(samfile, reffile, chrom, pos, ref, alt, min_mapq=20):
     reads = [r.seq for r in reads if r.mapq >= min_mapq]
     scores = multi_align(ref_seq, alt_seq, reads)
     
-    return scores
+    return {ref: scores[0], alt: scores[1]}
 
 def count_bases_pileup(pileup, position, min_baseq=15, min_mapq=20):
     """
