@@ -58,9 +58,8 @@ d <- merge(d, a)
 d <- d[!is.na(d$vaf),]
 d <- merge(d, s, by.x=c("sample"), by.y=c("tumor.sample"))
 
-sink("/dev/null")
 pdf("histos.pdf")
-by(d, d$sample, function (ss) {
+. <- by(d, d$sample, function (ss) {
     mu <- mean(ss$vaf)
     sigma <- sd(ss$vaf)
     ss <- subset(ss, abs((vaf-mu)/sigma) <= 3) # trim outliers
@@ -70,6 +69,7 @@ by(d, d$sample, function (ss) {
     dens <- density(ss$vaf)
     dens1 <- density(ss1$vaf)
     ymax <- max(c(dens$y, dens1$y))
+    cat(levels(d$sample)[ss[1, "sample"]], 2*dens$x[which.max(dens1$y)], "\n")
     
     plot(dens, col="blue", main=ss[1,"sample"], xlab="variant allelic fraction",
          ylim=c(0, ymax))
@@ -90,4 +90,3 @@ by(d, d$sample, function (ss) {
            bg="white")
 })
 dev.off()
-sink()

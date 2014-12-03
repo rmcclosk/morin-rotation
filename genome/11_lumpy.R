@@ -40,9 +40,10 @@ sr.template <- paste0("-sr ",
                       "min_mapping_threshold:%d")
 
 cmds <- by(d, d$patient, function (pd) {
-    samples <- unique(c(pd$tumor.sample, pd$normal.sample))
+    samples <- unique(c(pd$normal.sample, pd$tumor.sample))
     samples <- samples[!is.na(samples)]
-    args <- paste(sapply(samples, function (s) {
+    args <- paste(sapply(1:length(samples), function (i) {
+        s <- samples[i]
         sr.file <- file.path(sr.dir, paste0(s, ".bam"))
         pe.file <- file.path(pe.dir, paste0(s, ".bam"))
         hist.file <- file.path(hist.dir, paste0(s, ".histo"))
@@ -54,10 +55,14 @@ cmds <- by(d, d$patient, function (pd) {
         mean <- round(as.numeric(strsplit(stat[1,1], ":")[[1]][2]))
         stdev <- round(as.numeric(strsplit(stat[1,2], ":")[[1]][2]))
 
+        pe.id <- 2*i - 1
+        sr.id <- 2*i
+        cat(s, pe.id, sr.id, "\n")
+
         pe.cmd <- sprintf(pe.template, pe.file, hist.file, mean, stdev,
                           read.length, min.non.overlap, discordant.z,
-                          back.distance, weight, s, min.mapping.threshold)
-        sr.cmd <- sprintf(sr.template, sr.file, back.distance, weight, s,
+                          back.distance, weight, pe.id, min.mapping.threshold)
+        sr.cmd <- sprintf(sr.template, sr.file, back.distance, weight, sr.id,
                           min.mapping.threshold)
         paste(pe.cmd, sr.cmd)
     }), collapse=" ")
