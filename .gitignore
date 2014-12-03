@@ -12,11 +12,10 @@ jobs.txt
 qsub-logs
 .RData
 .Rhistory
-*.orig
 .ruffus_history.sqlite
-snv.tsv
 titan-ref
 refGene.txt
 tmp
 iterate-ABSOLUTE-ExomeCNV
 metadata.tsv
+titan_input.txt
