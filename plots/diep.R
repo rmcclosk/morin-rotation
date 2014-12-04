@@ -1,6 +1,8 @@
 #!/usr/bin/env Rscript
 
 library(ggplot2)
+library(gtable)
+library(gridExtra)
 
 source(file="bedUtils.R")
 chrs <- c(1:22, "X")
@@ -83,9 +85,10 @@ do.plot <- function (plot.data, title) {
         theme_bw() +
         ylab("copy number") +
         xlab("chromosome") +
-        theme(axis.ticks.x=element_blank()) +
+        theme(axis.ticks.x=element_blank(), legend.position="bottom") +
         geom_vline(data=chr.data, aes(xintercept=chr.start), color="grey", linetype="dashed") +
         scale_x_continuous(breaks=chr.data$chr.midpoint, labels=c(1:22, "X"), limits=c(0, genome.end), expand=c(0, 0)) +
+        scale_y_continuous(limits=c(0, 80)) +
         ggtitle(title)
 }
 
