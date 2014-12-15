@@ -6,8 +6,8 @@ is to run ABSOLUTE.R on segments from each sample individually. The second step
 is to run summarize.R on all the results at once.
 
 This folder is set up with a Makefile. To use it, put your segments in the
-"segments" folder. If you have MAF files, put them in the "mafs" folder. Then
-make. 
+"segments" folder. If you have MAF files, put them in the "mafs" folder. If
+not, edit the Makefile and comment out the line defining MAF_DIR. Then make. 
 
 Reference
 ---------

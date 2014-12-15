@@ -72,9 +72,14 @@ archive.or.file <- function (fn) {
 }
 
 seg.file <- archive.or.file(opt$segments)
-maf.file <- archive.or.file(opt$`maf-file`)
+if (!is.null(opt$`maf-file`)) {
+    maf.file <- archive.or.file(opt$`maf-file`)
+} else { 
+    maf.file <- NULL
+}
 
 sample <- sub(".seg(.gz|.bz2)?", "", basename(opt$segments))
+dir.create(opt$outdir, showWarnings=F)
 stem <- file.path(opt$outdir, sample)
 
 sink(file=paste0(stem, ".log"))
