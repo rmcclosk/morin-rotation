@@ -1,5 +1,13 @@
 #!/usr/bin/env Rscript
 
+# This script summarizes the results of running ABSOLUTE on multiple samples.
+# 
+# Arguments
+# ---------
+#    -p: path containing RData files produced by ABSOLUTE.R
+#    -n: name of summary files to produce (default = "summary")
+#    -d: directory to put summary files in (default = ".")
+
 library(ABSOLUTE)
 library(getopt)
 

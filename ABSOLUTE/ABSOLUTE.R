@@ -1,5 +1,23 @@
 #!/usr/bin/env Rscript
 
+# Run ABSOLUTE on segments, and optionally a MAF file, for an individual
+# sample. This is only the first step of ABSOLUTE. The second step is to
+# summarize the results from all the samples collectively (see summarize.R).
+# 
+# Arguments
+# ---------
+# See the [official documentation](http://www.broadinstitute.org/cancer/software/genepattern/modules/docs/ABSOLUTE/1?print=true) 
+# for the meaning of the parameters not documented here.
+#
+#   segments: file containing CNV segments, optionally compressed with gzip or
+#             bzip2. Has 5 columns: Sample, Chromosome, Start, End, Num_Probes,
+#             Segment_Mean.
+#
+#   maf-file: optional. A MAF file containing SNVs, with the columns
+#             t_ref_count and t_alt_count filled in.
+#
+#     outdir: directory to write output files.
+
 library(ABSOLUTE)
 library(getopt)
 
@@ -59,7 +77,7 @@ maf.file <- archive.or.file(opt$`maf-file`)
 sample <- sub(".seg(.gz|.bz2)?", "", basename(opt$segments))
 stem <- file.path(opt$outdir, sample)
 
-#sink(file=paste0(stem, ".log"))
+sink(file=paste0(stem, ".log"))
 RunAbsolute(seg.file,
             opt$`sigma-p`, 
             opt$`max-sigma-h`,
@@ -76,4 +94,4 @@ RunAbsolute(seg.file,
             verbose=TRUE,
             maf.fn=maf.file,
             min.mut.af=opt$`min-mut-af`)
-#sink()
+sink()

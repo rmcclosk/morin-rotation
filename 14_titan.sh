@@ -15,7 +15,7 @@ for LINE in $(tail -n +2 $METADATA | grep -v cell-line); do
         fi
         echo -en "$TUMOR\t$TUMOR\t$BAM_DIR/$TUMOR.bam\t" > titan_input.txt
         echo -e  "$NORMAL\t$NORMAL\t$BAM_DIR/$NORMAL.bam" >> titan_input.txt
-        ~bgrande/software/genesis/bin/python $TITAN_DIR/TitanRunner.py -i $HOME/morin-rotation/titan_input.txt \
+        $TITAN_DIR/TitanRunner.py -i $HOME/morin-rotation/titan_input.txt \
                                          --project-name $TUMOR \
                                          --project-path $OUT_DIR \
                                          -c $HOME/morin-rotation/titan_config.cfg
