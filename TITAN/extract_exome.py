@@ -77,4 +77,4 @@ if __name__ == "__main__":
         fh.close()
 
     finally:
-        shutil.rmtree(tmpdir)
+        shutil.rmtree(tmpdir, ignore_errors=True)
