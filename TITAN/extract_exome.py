@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# Extract only the non-duplicated, QC-passing exome reads from a BAM file.
+
 import subprocess
 import argparse
 import tempfile
