@@ -44,7 +44,7 @@ all: titan.seg $(ALL_BEDS)
 # compile into one file
 titan.seg: purity.tsv
 	rm -f $@
-	echo -e "sample\tchrom\tstart\tend\tcopy.number\tprevalence" > $@
+	echo -e "sample\tchr\tstart\tend\tcopy.number\tprevalence" > $@
 	for SEGS in $(ALL_SEGS); do \
 		SAMPLE=`basename $$SEGS | cut -d '_' -f 1`; \
 		bzcat $$SEGS | tail -n +2 | sed s/tumour/$$SAMPLE/ | cut -f 1-4,10,14 >> $@; \

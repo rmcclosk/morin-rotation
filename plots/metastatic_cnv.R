@@ -89,6 +89,7 @@ all.segs <- lapply(unique(segs$patient), function (by.patient) {
         meta.segs <- subset(pat.segs, sample == m)
         res <- do.subtract(primary.segs, meta.segs)
         cat("done\n")
+        write.table(res[,c(bed.colnames, "copy.number")], paste0("metastatic-cnv/", m, ".bed"), row.names=F, quote=F, sep="\t", col.names=F)
         res
     })
     comb.segs <- Reduce(do.combine, sub.segs)
@@ -105,7 +106,7 @@ all.segs <- lapply(unique(segs$patient), function (by.patient) {
 sample.segs <- Reduce(do.combine, all.segs)
 sample.segs <- sample.segs[order(sample.segs$chr, sample.segs$start),]
 sample.segs <- sample.segs[,c(bed.colnames, "copy.number", "count", "count.patient")]
-write.table(sample.segs, file="combined-segs.bed", row.names=F, quote=F, sep="\t")
+write.table(sample.segs, file="combined-segs.bed", row.names=F, quote=F, sep="\t", col.names=F)
 
 pdf(file.path("metastatic-cnv", "all-samples.pdf"), width=12, height=5)
 print(plot.segs(sample.segs, "all by sample", "count"))

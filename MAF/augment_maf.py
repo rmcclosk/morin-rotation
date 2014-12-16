@@ -12,6 +12,7 @@ import mafUtils
 import bamUtils
 import warnings
 import sys
+import itertools
 
 if __name__ == "__main__":
     desc = "Add normal and/or tumour allele counts to a MAF file"
@@ -32,13 +33,14 @@ if __name__ == "__main__":
     tumour_sams = [pysam.Samfile(bam) for bam in args.tumour_bam]
     samfiles = {"normal": normal_sams, "tumour": tumour_sams}
     
-    lines = []
+    readers = []
     for f in args.maf:
-        lines.extend(x for x in open(f) if not x.startswith("#"))
-    reader = csv.DictReader(lines, delimiter="\t")
+        lines = [x for x in open(f) if not x.startswith("#")]
+        readers.append(csv.DictReader(lines, delimiter="\t"))
+    reader = itertools.chain(*readers)
 
     count_keys = ["n_ref_count", "n_alt_count", "t_ref_count", "t_alt_count"]
-    fields = reader.fieldnames
+    fields = readers[0].fieldnames
     for key in count_keys:
         if not key in fields:
             fields.append(key)

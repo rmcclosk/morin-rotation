@@ -86,9 +86,9 @@ def count_bases_pileup(pileup, position, min_baseq=15, min_mapq=20):
                 qc_fail = read.alignment.is_qcfail
                 low_mapq = read.alignment.mapq < min_mapq
                 if not (dup or qc_fail or low_mapq):
-                    base_qual = ord(read.alignment.qual[read.qpos])-33
+                    base_qual = ord(read.alignment.qual[read.query_position])-33
                     if base_qual >= min_baseq:
-                        base = read.alignment.seq[read.qpos]
+                        base = read.alignment.seq[read.query_position]
                         counts[base] += 1
 
     return counts
