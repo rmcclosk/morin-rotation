@@ -14,10 +14,6 @@ ALL_SEGS = $(patsubst $(BAM_DIR)/%, \
 					  $(TITAN_DIR)/%_segs.txt.bz2, \
                 	  $(ALL_SAMPLES))
 
-ALL_BEDS = $(patsubst $(BAM_DIR)/%, \
-					  $(TITAN_DIR)/%.bed.bz2, \
-                	  $(ALL_SAMPLES))
-
 MAKESCRIPT=mkdir -p $(dir $@); \
 	echo "\#!/bin/bash" > $@; \
 	echo $(SCRIPT) >> $@
@@ -32,7 +28,7 @@ RUNSCRIPT=echo "`date`: starting $(notdir $^)"; \
 		 -l h_vmem=$(MEM) -l mem_token=$(MEM) -l mem_free=$(MEM) $^ && \
 	echo "`date`: finished $(notdir $^)"
 
-all: titan.seg $(ALL_BEDS)
+all: titan.seg
 
 # make BED files
 %.bz2: %
