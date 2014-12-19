@@ -1,3 +1,5 @@
+You should check the wiki of this repo for more useful documentation, and also my last post on the Morin lab wiki.
+
 data
 ----
 Useful bed and seg files (eg. lists of genes). See the README in the directory
