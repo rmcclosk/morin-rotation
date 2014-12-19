@@ -1,4 +1,6 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
+
+# Extract only the non-duplicated, QC-passing exome reads from a BAM file.
 
 import subprocess
 import argparse
@@ -75,4 +77,4 @@ if __name__ == "__main__":
         fh.close()
 
     finally:
-        shutil.rmtree(tmpdir)
+        shutil.rmtree(tmpdir, ignore_errors=True)

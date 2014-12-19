@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 # Get the TITAN results for the best cluster, copy to an output directory, and
 # compress.
