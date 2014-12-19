@@ -1,0 +1,344 @@
+\documentclass[12pt]{article}
+\usepackage[margin=0.5in]{geometry}
+\usepackage{mathptmx}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{parskip}
+\usepackage{mathtools}
+\pagestyle{empty}
+
+\usetikzlibrary{positioning}
+
+\begin{document}
+
+\section{Assumptions}
+
+\begin{enumerate}
+    \item If a mutation is present on the amplified strand of a CNA
+        amplification event, then it is present in the \emph{entire} subclone
+        containing that event.  Presence on a duplicated strand implies the
+        mutation was present before the duplication happened, that is, the
+        cells with the mutation are a superset of the cells with the CNA.
+
+    \item In a duplication event with copy number $k$, a mutation can either be
+        present on 1 copy, or on $k-1$ copies. We assume it is highly unlikely
+        that locus was amplified, then picked up a mutation, and then was
+        amplified further.
+\end{enumerate}
+
+
+\section{Terminology}
+
+\begin{description}
+    \item[VAF] variant allele fraction, ie. the proportion of reads supporting a mutation
+    \item[CCF] cancer cell fraction, ie. the proportion of tumour cells containing a mutation
+    \item[prevalence] the proportion of tumour cells carrying a particular CNA
+    \item[purity] the proportion of cells in the sample deriving from the tumour
+    \item[copy number] the number of copies of a locus carried by the tumour
+        cells with a CNA
+\end{description}
+
+\section{Correction}
+
+The average number of copies of a locus in a tumour cell is
+\begin{align*}
+    \text{copy number} \cdot \text{prevalence} 
+    + 2 \cdot (1-\text{prevalence})
+\end{align*}
+The average number of copies in a normal cell is 2. From this, we can calculate
+the average number of copies of a locus in a cell from a sample of mixed tumour
+and normal cells. Since we will use this quantity often, we will call it
+$\alpha$. That is,
+\begin{align*}
+    \alpha = [(\text{copy number} \cdot \text{prevalence}) + (2 \cdot
+    (1-\text{prevalence}))] \cdot \text{purity} + 2 \cdot (1-\text{purity}).
+\end{align*}
+
+The VAF is the average number of copies carrying the mutation, divided by the
+average number of total copies of the locus, in a cell in the sample. 
+
+For loci without duplications (including those with heterozygous deletions),
+the average number of copies of the mutated allele per cell is
+\begin{align*}
+    \text{tumour purity} \cdot \text{CCF},
+\end{align*}
+and hence
+\begin{align*}
+    \text{VAF} &= \frac{\text{tumour purity} \cdot \text{CCF}}{\alpha} \quad\Rightarrow\quad
+    \text{CCF} = \frac{\alpha \cdot \text{VAF}}{\text{tumour purity}}.
+\end{align*}
+
+For loci with duplications, the situation is more complicated. If the mutation
+is not on the duplicated strand, the above relationship between VAF and CCF
+still holds. But if the mutation \emph{is} on the duplicated strand, then the
+number of copies of the mutation per cell is greater due to the duplication.
+If $k$ is the copy number of the locus, the cells with the CNA have $k-1$
+copies of the mutation.
+
+By assumption 1, in this scenario, every cell with the CNA has the mutation.
+But there may be some more cells with the mutation without the CNA, and some
+without either. The below schematic illustrates this.
+
+\begin{center}
+    \begin{tikzpicture}
+        \node [circle, draw, inner sep=2cm] (a) { };
+        \node [below=0.3cm of a.north, anchor=north] {neither};
+        \node [circle, draw, above=0cm of a.south, inner sep=1.7cm, anchor=south, fill=blue, fill opacity=0.25] (b) { };
+        \node [below=0.3cm of b.north, anchor=north] {mutation};
+        \node [circle, draw, above=0cm of a.south, inner sep=1.2cm, anchor=south, fill=blue, fill opacity=0.25] (c) { };
+        \node [below=0cm of c.center, anchor=center] {CNA};
+
+        \node [right=of a, text width=7cm] {
+            CCF = area of light blue circle \\
+            prevalence = area of dark blue circle
+        };
+    \end{tikzpicture}
+\end{center}
+
+There is 1 copy of the mutation in the cells without the CNA (the light blue
+circle minus the dark blue). There are (CCF - prevalence) cells in this region.
+There are (copy number - 1) copies of the mutation in the cells with the CNA
+(dark blue circle). Hence, the average number of copies of the mutation in a
+tumour cell is
+\begin{align*}
+    1 \cdot (\text{CCF} - \text{prevalence}) + (\text{copy number}-1)\cdot \text{prevalence},
+\end{align*}
+and so
+\begin{align*}
+    \text{VAF} &= \frac{[\text{CCF} - \text{prevalence} + (\text{copy number}-1)\cdot \text{prevalence}] \cdot \text{tumour purity}}{\alpha} \\
+    \Rightarrow \text{CCF} &= \frac{\alpha \text{VAF}}{\text{tumour purity}} - (\text{copy number} - 2) \cdot \text{prevalence}.
+\end{align*}
+This formula for CCF is intuitive. Since the mutation is duplicated, there are
+[(copy number - 2)$\cdot$ prevalence] ``extra'' copies of the mutation which
+must be subtracted off to get the true CCF.
+
+Putting this all together, we have
+\begin{align*}
+    \text{CCF} = 
+    \begin{dcases}
+        \frac{\alpha\cdot\text{VAF}}{\text{tumour purity}} & \text{mutation is not amplified} \\
+        \frac{\alpha\cdot\text{VAF}}{\text{tumour purity}} - (\text{copy number} - 2) \cdot \text{prevalence} & \text{mutation is amplifed}.
+    \end{dcases}
+\end{align*}
+
+\section{Choosing a scenario}
+
+Unfortunately, we don't know \textit{a priori} whether a mutation is amplified
+or not. But we can make some inferences.
+\begin{itemize}
+    \item If the CCF would be less than $p$ on the amplified strand, we assume
+        the mutation is not amplified.
+    \item If the CCF would be greater that 1 on the non-amplified strand, we
+        assume the mutation \emph{is} amplified.
+\end{itemize}
+
+Consider an example with copy number = 3, prevalence = 0.8, and purity = 0.8.
+
+\begin{center}
+<<echo=F, eval=T, dev='pdf', fig.width=4, fig.height=4>>=
+par(mar=c(4,4,0,0))
+vaf <- c(0, 1, 0.1)
+pur <- 0.8
+prev <- 0.8
+cn <- 3
+avg.copies <- (cn*prev + 2*(1-prev))*pur + 2*(1-pur)
+pur.bound <- (cn-1)*prev*pur/avg.copies
+ccf.bound <- pur/avg.copies
+
+ccf.no.amp <- avg.copies*vaf/pur
+ccf.amp <- avg.copies*vaf/pur - (cn-2)*prev
+plot(vaf, ccf.amp, col='red', main='', xlab='VAF', ylab='CCF', type='l')
+lines(vaf, ccf.no.amp, col='blue')
+abline(h=prev, lty=2)
+abline(h=1, lty=3)
+legend('topleft', 
+       legend=c('amplified', 'not amplified', 'CCF=prevalence', 'CCF=1'), 
+       col=c('red', 'blue', 'black', 'black'), 
+       lty=c(1,1,2,3), bg='white')
+@
+\end{center}
+
+We can't use the red line for correction below the prevalence of the CNA, since
+that would violate assumption 1. We also can't use the either line above CCF=1,
+since that doesn't make sense (CCF must be less than 1). The below shows the
+regions where each line is allowed to be used.
+
+\begin{center}
+<<echo=F, eval=T, dev='pdf', fig.width=4, fig.height=4>>=
+par(mar=c(4,4,0,0))
+vaf <- seq(0, 1, 0.01)
+pur <- 0.8
+prev <- 0.8
+cn <- 3
+avg.copies <- (cn*prev + 2*(1-prev))*pur + 2*(1-pur)
+pur.bound <- (cn-1)*prev*pur/avg.copies
+ccf.bound <- pur/avg.copies
+
+ccf.no.amp <- avg.copies*vaf/pur
+ccf.amp <- avg.copies*vaf/pur - (cn-2)*prev
+amp.idx <- which(ccf.amp >= prev & ccf.amp <= 1)
+no.amp.idx <- which(ccf.no.amp <= 1)
+
+plot(vaf, ccf.amp, col='red', main='', xlab='VAF', ylab='CCF', type='l')
+lines(vaf, ccf.no.amp, col='blue')
+lines(vaf[amp.idx], ccf.amp[amp.idx], col='red', lwd=5)
+lines(vaf[no.amp.idx], ccf.no.amp[no.amp.idx], col='blue', lwd=5)
+abline(v=pur.bound, lty=2)
+abline(v=ccf.bound, lty=3)
+
+legend('topleft', 
+       legend=c('amplified', 'not amplified'),
+       col=c('red', 'blue'),
+       lty=c(1,1), bg='white')
+@
+\end{center}
+
+Here, there is a region of ``impossible'' VAF's, which do not agree with either
+scenario. If our estimates of copy number, tumour purity, and CNA prevalence
+are all correct, then we should not observe any VAF's in this region. If we do,
+then they are resolved by using the nearest allowed line, as shown below.
+
+\begin{center}
+<<echo=F, eval=T, dev='pdf', fig.width=4, fig.height=4>>=
+par(mar=c(4,4,0,0))
+vaf <- seq(0, 1, 0.01)
+pur <- 0.8
+prev <- 0.8
+cn <- 3
+avg.copies <- (cn*prev + 2*(1-prev))*pur + 2*(1-pur)
+pur.bound <- (cn-1)*prev*pur/avg.copies
+ccf.bound <- pur/avg.copies
+midpt <- mean(c(ccf.bound, pur.bound))
+
+ccf.no.amp <- avg.copies*vaf/pur
+ccf.amp <- avg.copies*vaf/pur - (cn-2)*prev
+amp.idx <- which(vaf >= midpt)
+no.amp.idx <- which(vaf <= midpt)
+
+plot(vaf, ccf.amp, col='red', main='', xlab='VAF', ylab='CCF', type='l')
+lines(vaf, ccf.no.amp, col='blue')
+lines(vaf[amp.idx], ccf.amp[amp.idx], col='red', lwd=5)
+lines(vaf[no.amp.idx], ccf.no.amp[no.amp.idx], col='blue', lwd=5)
+abline(v=pur.bound, lty=2)
+abline(v=ccf.bound, lty=3)
+
+legend('topleft', 
+       legend=c('amplified', 'not amplified'),
+       col=c('red', 'blue'),
+       lty=c(1,1), bg='white')
+@
+\end{center}
+
+Now, depending on the purity and prevalence values, there might not be a region
+of impossible VAF's. For example, suppose copy number = 3 and purity = 0.8 as
+before, but prevalence = 0.3. Then we end up with the following situation,
+where there is a region of ``ambiguous'' VAF's which might belong to either
+scenario.
+
+\begin{center}
+<<echo=F, eval=T, dev='pdf', fig.width=4, fig.height=4>>=
+par(mar=c(4,4,0,0))
+vaf <- seq(0, 1, 0.01)
+pur <- 0.8
+prev <- 0.3
+cn <- 3
+avg.copies <- (cn*prev + 2*(1-prev))*pur + 2*(1-pur)
+pur.bound <- (cn-1)*prev*pur/avg.copies
+ccf.bound <- pur/avg.copies
+
+ccf.no.amp <- avg.copies*vaf/pur
+ccf.amp <- avg.copies*vaf/pur - (cn-2)*prev
+amp.idx <- which(ccf.amp >= prev & ccf.amp <= 1)
+no.amp.idx <- which(ccf.no.amp <= 1)
+
+plot(vaf, ccf.amp, col='red', main='', xlab='VAF', ylab='CCF', type='l')
+lines(vaf, ccf.no.amp, col='blue')
+lines(vaf[amp.idx], ccf.amp[amp.idx], col='red', lwd=5)
+lines(vaf[no.amp.idx], ccf.no.amp[no.amp.idx], col='blue', lwd=5)
+abline(v=pur.bound, lty=2)
+abline(v=ccf.bound, lty=3)
+
+legend('topleft', 
+       legend=c('amplified', 'not amplified'),
+       col=c('red', 'blue'),
+       lty=c(1,1), bg='white')
+@
+\end{center}
+
+In this case, we correct the same way, by partitioning the ambiguous region
+down the middle.
+
+\begin{center}
+<<echo=F, eval=T, dev='pdf', fig.width=4, fig.height=4>>=
+par(mar=c(4,4,0,0))
+vaf <- seq(0, 1, 0.01)
+pur <- 0.8
+prev <- 0.3
+cn <- 3
+avg.copies <- (cn*prev + 2*(1-prev))*pur + 2*(1-pur)
+pur.bound <- (cn-1)*prev*pur/avg.copies
+ccf.bound <- pur/avg.copies
+midpt <- mean(c(ccf.bound, pur.bound))
+
+ccf.no.amp <- avg.copies*vaf/pur
+ccf.amp <- avg.copies*vaf/pur - (cn-2)*prev
+amp.idx <- which(vaf >= midpt)
+no.amp.idx <- which(vaf <= midpt)
+
+plot(vaf, ccf.amp, col='red', main='', xlab='VAF', ylab='CCF', type='l')
+lines(vaf, ccf.no.amp, col='blue')
+lines(vaf[amp.idx], ccf.amp[amp.idx], col='red', lwd=5)
+lines(vaf[no.amp.idx], ccf.no.amp[no.amp.idx], col='blue', lwd=5)
+abline(v=pur.bound, lty=2)
+abline(v=ccf.bound, lty=3)
+
+legend('topleft', 
+       legend=c('amplified', 'not amplified'),
+       col=c('red', 'blue'),
+       lty=c(1,1), bg='white')
+@
+\end{center}
+
+The boundary corresponding to ``amplified CCF falling below CNA prevalence''
+can be derived from substituting CCF=prevalence into the equation for
+correction on the amplified strand. The resulting boundary is
+\begin{align*}
+    \frac{(\text{copy number - 1})\cdot\text{prevalence}\cdot\text{tumour purity}}{\alpha}.
+\end{align*}
+
+Similarly, the boundary corresponding to ``non-amplified CCF going above 1'' is
+\begin{align*}
+    \frac{\text{tumour purity}}{\alpha}.
+\end{align*}
+
+The midpoint between these two boundaries is
+\begin{align*}
+    \frac{[(\text{copy number} - 1) \cdot \text{prevalence} + 1] \cdot \text{tumour purity}}{\alpha}.
+\end{align*}
+
+Hence, the expression we use for correction of VAF to CCF is
+\begin{align*}
+    VAF = 
+    \begin{dcases}
+        \frac{\alpha\cdot\text{VAF}}{\text{tumour purity}} 
+            & \text{VAF} \leq \frac{[(\text{copy number} - 1) \cdot \text{prevalence} + 1] \cdot \text{tumour purity}}{\alpha} \\
+        \frac{\alpha\cdot\text{VAF}}{\text{tumour purity}} - (\text{copy number} - 2) \cdot \text{prevalence} 
+            & \text{otherwise}.
+    \end{dcases}
+\end{align*}
+
+Here is the correction implemented in R code. The variable \texttt{avg.copies}
+is what I've been calling $\alpha$.
+\begin{verbatim}
+vaf.to.ccf <- function (vaf, pur, cn, prev) {
+    avg.copies <- (cn*prev + 2*(1-prev))*pur + 2*(1-pur)
+    pur.bound <- (cn-1)*prev*pur/avg.copies
+    ccf.bound <- pur/avg.copies
+    midpoint <- mean(c(pur.bound, ccf.bound))
+    ifelse(cn <= 2 | vaf <= midpoint,
+           avg.copies*vaf/pur,
+           avg.copies*vaf/pur - (cn-2)*prev)
+}
+\end{verbatim}
+
+\end{document}
