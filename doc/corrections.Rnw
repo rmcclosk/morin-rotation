@@ -5,27 +5,28 @@
 \usepackage{tikz}
 \usepackage{parskip}
 \usepackage{mathtools}
+\usepackage{multirow}
 \pagestyle{empty}
 
 \usetikzlibrary{positioning}
 
+\newcommand{\ccf}{\mathrm{CCF}}
+\newcommand{\vaf}{\mathrm{VAF}}
+\newcommand{\prev}{\mathrm{prevalence}}
+\newcommand{\pur}{\mathrm{tumour\;purity}}
+\newcommand{\cn}{\mathrm{copy\;number}}
+\newcommand{\macn}{\mathrm{major\;CN}}
+\newcommand{\micn}{\mathrm{minor\;CN}}
+
 \begin{document}
 
-\section{Assumptions}
+\section{Assumption}
 
-\begin{enumerate}
-    \item If a mutation is present on the amplified strand of a CNA
-        amplification event, then it is present in the \emph{entire} subclone
-        containing that event.  Presence on a duplicated strand implies the
-        mutation was present before the duplication happened, that is, the
-        cells with the mutation are a superset of the cells with the CNA.
-
-    \item In a duplication event with copy number $k$, a mutation can either be
-        present on 1 copy, or on $k-1$ copies. We assume it is highly unlikely
-        that locus was amplified, then picked up a mutation, and then was
-        amplified further.
-\end{enumerate}
-
+If a mutation is present on the amplified strand of a CNA amplification event,
+then it is present in the \emph{entire} subclone containing that event.
+Presence on a duplicated strand implies the mutation was present before the
+duplication happened, that is, the cells with the mutation are a superset of
+the cells with the CNA.
 
 \section{Terminology}
 
@@ -36,48 +37,59 @@
     \item[purity] the proportion of cells in the sample deriving from the tumour
     \item[copy number] the number of copies of a locus carried by the tumour
         cells with a CNA
+    \item[major CN] copy number of strand with greater number of copies
+    \item[minor CN] copy number of strand with lesser number of copies
 \end{description}
+
+Note that major CN + minor CN = copy number. Also, we refer to the strand with
+the major copy number as the major strand, and likewise for the minor strand.
 
 \section{Correction}
 
 The average number of copies of a locus in a tumour cell is
+
 \begin{align*}
-    \text{copy number} \cdot \text{prevalence} 
-    + 2 \cdot (1-\text{prevalence})
+    \cn \cdot \prev + 2 \cdot (1-\prev)
 \end{align*}
+
 The average number of copies in a normal cell is 2. From this, we can calculate
 the average number of copies of a locus in a cell from a sample of mixed tumour
 and normal cells. Since we will use this quantity often, we will call it
 $\alpha$. That is,
+
 \begin{align*}
-    \alpha = [(\text{copy number} \cdot \text{prevalence}) + (2 \cdot
-    (1-\text{prevalence}))] \cdot \text{purity} + 2 \cdot (1-\text{purity}).
+    \alpha = [(\cn \cdot \prev) + (2 \cdot (1-\prev))] 
+             \cdot \pur + 2 \cdot (1 - \pur)
 \end{align*}
 
 The VAF is the average number of copies carrying the mutation, divided by the
 average number of total copies of the locus, in a cell in the sample. 
 
-For loci without duplications (including those with heterozygous deletions),
-the average number of copies of the mutated allele per cell is
+Suppose the mutation occurs on a strand without a dupllication (that is, the
+strand has either zero or one copies the locus in question). Then each tumor
+cell with the mutation has exactly one copy of the mutation, so the average
+number of copies of the mutated allele per cell is
+
 \begin{align*}
-    \text{tumour purity} \cdot \text{CCF},
+    \pur \cdot \ccf,
 \end{align*}
+
 and hence
+
 \begin{align*}
-    \text{VAF} &= \frac{\text{tumour purity} \cdot \text{CCF}}{\alpha} \quad\Rightarrow\quad
-    \text{CCF} = \frac{\alpha \cdot \text{VAF}}{\text{tumour purity}}.
+    \vaf = \frac{\pur \cdot \ccf}{\alpha} \quad\Rightarrow\quad
+    \ccf = \frac{\alpha \cdot \vaf}{\pur}.
 \end{align*}
 
-For loci with duplications, the situation is more complicated. If the mutation
-is not on the duplicated strand, the above relationship between VAF and CCF
-still holds. But if the mutation \emph{is} on the duplicated strand, then the
-number of copies of the mutation per cell is greater due to the duplication.
-If $k$ is the copy number of the locus, the cells with the CNA have $k-1$
-copies of the mutation.
+This is also the correct formula to use if the mutation does not occur in cells
+with the CNA.
 
-By assumption 1, in this scenario, every cell with the CNA has the mutation.
-But there may be some more cells with the mutation without the CNA, and some
-without either. The below schematic illustrates this.
+Now, suppose there is a CNA at the locus of the mutation in the tumour.
+Consider the case where the mutation is on the major strand, that is, there are
+major CN copies of the mutation in cells with the CNA. By assumption, in this
+scenario, the population of cells showing the duplication is a subset of the
+population with the mutation, which is in turn a subset of the complete
+population of tumour cells. The below schematic illustrates this.
 
 \begin{center}
     \begin{tikzpicture}
@@ -95,250 +107,209 @@ without either. The below schematic illustrates this.
     \end{tikzpicture}
 \end{center}
 
-There is 1 copy of the mutation in the cells without the CNA (the light blue
-circle minus the dark blue). There are (CCF - prevalence) cells in this region.
-There are (copy number - 1) copies of the mutation in the cells with the CNA
-(dark blue circle). Hence, the average number of copies of the mutation in a
-tumour cell is
-\begin{align*}
-    1 \cdot (\text{CCF} - \text{prevalence}) + (\text{copy number}-1)\cdot \text{prevalence},
-\end{align*}
-and so
-\begin{align*}
-    \text{VAF} &= \frac{[\text{CCF} - \text{prevalence} + (\text{copy number}-1)\cdot \text{prevalence}] \cdot \text{tumour purity}}{\alpha} \\
-    \Rightarrow \text{CCF} &= \frac{\alpha \text{VAF}}{\text{tumour purity}} - (\text{copy number} - 2) \cdot \text{prevalence}.
-\end{align*}
-This formula for CCF is intuitive. Since the mutation is duplicated, there are
-[(copy number - 2)$\cdot$ prevalence] ``extra'' copies of the mutation which
-must be subtracted off to get the true CCF.
+The cells without the mutation (white region) do not have the mutation at all;
+in other words, there are zero copies of the mutation in these cells. The cells
+without the CNA (the light blue region) do not have a duplication, so they
+possess exactly one copy of the mutation each. In the cells with the CNA (dark
+blue region), there are major CN copies of the mutation. Hence, the average
+number of copies of the mutation in a tumour cell is
 
-Putting this all together, we have
 \begin{align*}
-    \text{CCF} = 
+     & 0 \cdot (1-\ccf) \\
+    +& 1 \cdot (\ccf - \prev) \\
+    +& \macn \cdot \prev,
+\end{align*}
+
+and so
+
+\begin{align*}
+    \vaf &= \frac{[\ccf - \prev + \macn \cdot \prev] \cdot \pur}{\alpha} \\
+    \Rightarrow \ccf &= \frac{\alpha \vaf}{\pur} - (\macn - 1) \cdot \prev.
+\end{align*}
+
+This formula for CCF is intuitive. Since the mutation is duplicated, there are
+$[(\macn - 1)\cdot \prev]$ ``extra'' copies of the mutation which must be
+subtracted off to get the true CCF.
+
+Putting this all together, we arrive at an expression for CCF for a mutation on
+the major strand.
+
+\begin{align*}
+    \ccf =
     \begin{dcases}
-        \frac{\alpha\cdot\text{VAF}}{\text{tumour purity}} & \text{mutation is not amplified} \\
-        \frac{\alpha\cdot\text{VAF}}{\text{tumour purity}} - (\text{copy number} - 2) \cdot \text{prevalence} & \text{mutation is amplifed}.
+        \frac{\alpha\cdot\vaf}{\pur} & \macn < 2 \\
+        \frac{\alpha\cdot\vaf}{\pur} - (\macn - 1) \cdot \prev & \macn \geq 2.
     \end{dcases}
 \end{align*}
+
+Equivalently,
+
+\begin{align*}
+    \ccf = \frac{\alpha\cdot\vaf}{\pur} - \max(\macn - 1, 0) \cdot \prev.
+\end{align*}
+
+Of course, the expression for CCF when the mutation is on the minor strand is
+exactly the same, except replacing ``$\micn$'' with ``$\macn$''. Therefore, 
+
+\begin{align}
+    \ccf = 
+    \begin{dcases}
+        \frac{\alpha\cdot\vaf}{\pur} 
+        & \text{mutation not on CNA} \\
+        \frac{\alpha\cdot\vaf}{\pur} - \max(\micn - 1, 0) \cdot \prev
+        & \text{mutation on minor strand} \\
+        \frac{\alpha\cdot\vaf}{\pur} - \max(\macn - 1, 0) \cdot \prev
+        & \text{mutation on major strand}.
+    \end{dcases}
+    \label{eq:cor}
+\end{align}
 
 \section{Choosing a scenario}
 
-Unfortunately, we don't know \textit{a priori} whether a mutation is amplified
-or not. But we can make some inferences.
+Unfortunately, we don't know \textit{a priori} whether a mutation co-occurs
+with the CNA, and if so, whether it is on the major or minor strand. But we can
+make some observations.
+
 \begin{itemize}
-    \item If the CCF would be less than $p$ on the amplified strand, we assume
-        the mutation is not amplified.
-    \item If the CCF would be greater that 1 on the non-amplified strand, we
-        assume the mutation \emph{is} amplified.
+    \item A mutation cannot have CCF less than $p$ if it is on a duplicated
+        strand (by assumption).
+    \item A mutation cannot have CCF greater than 1.
+    \item A mutation cannot co-occur with a CNA on a strand with zero copies.
+    \item If a mutation does not co-occur with a CNA, then the CCF must be less
+        than the prevalence of the CNA.
 \end{itemize}
 
-Consider an example with copy number = 3, prevalence = 0.8, and purity = 0.8.
+By these observations, the corrected CCF must fall in the region $[0, \prev]$
+if the mutation does not co-occur with the CNA. If it does, than the CCF must
+fall in $[\prev, 1]$. Since we are given VAF, not CCF, we must find the values
+of these endpoints in terms of VAF. This is done simply by substituting the
+relevant CCF values into equation \ref{eq:cor}.
 
 \begin{center}
-<<echo=F, eval=T, dev='pdf', fig.width=4, fig.height=4>>=
-par(mar=c(4,4,0,0))
-vaf <- c(0, 1, 0.1)
-pur <- 0.8
-prev <- 0.8
-cn <- 3
-avg.copies <- (cn*prev + 2*(1-prev))*pur + 2*(1-pur)
-pur.bound <- (cn-1)*prev*pur/avg.copies
-ccf.bound <- pur/avg.copies
-
-ccf.no.amp <- avg.copies*vaf/pur
-ccf.amp <- avg.copies*vaf/pur - (cn-2)*prev
-plot(vaf, ccf.amp, col='red', main='', xlab='VAF', ylab='CCF', type='l')
-lines(vaf, ccf.no.amp, col='blue')
-abline(h=prev, lty=2)
-abline(h=1, lty=3)
-legend('topleft', 
-       legend=c('amplified', 'not amplified', 'CCF=prevalence', 'CCF=1'), 
-       col=c('red', 'blue', 'black', 'black'), 
-       lty=c(1,1,2,3), bg='white')
-@
+    \begin{tabular}{ccc}
+        scenario & CCF & VAF \\
+        \hline
+        \multirow{2}{*}{not on CNA} & 0 & 0 \\
+        & $\prev$ & $\pur \cdot \prev / \alpha$ \\
+        \hline
+        \multirow{2}{*}{minor strand} & $\prev$ & $\max(\macn, 1) \cdot \prev \cdot \pur / \alpha$ \\
+        & 1 & $[1+\max(\macn-1, 0) \cdot \prev] \cdot \pur / \alpha$ \\
+        \hline
+        \multirow{2}{*}{major strand} & $\prev$ & $\max(\micn, 1) \cdot \prev \cdot \pur / \alpha$ \\
+        & 1 & $[1+\max(\micn-1, 0) \cdot \prev] \cdot \pur / \alpha$ \\
+        \hline
+    \end{tabular}
 \end{center}
 
-We can't use the red line for correction below the prevalence of the CNA, since
-that would violate assumption 1. We also can't use the either line above CCF=1,
-since that doesn't make sense (CCF must be less than 1). The below shows the
-regions where each line is allowed to be used.
+In other words, we can use the formula for ``not on CNA'' when the observed VAF
+is between 0 and $\pur \cdot \prev / \alpha$, and so on. It is likely that
+these allowable regions are not exactly end-to-end, so that there are VAF
+values which are not allowed in any scenario (``impossible''), or are allowed
+in more than one (``ambiguous''). To rectify this, we simply bisect the
+ambiguous or impossible region at its midpoint, and assign each half to the
+nearest allowable scenario.
 
-\begin{center}
-<<echo=F, eval=T, dev='pdf', fig.width=4, fig.height=4>>=
-par(mar=c(4,4,0,0))
-vaf <- seq(0, 1, 0.01)
-pur <- 0.8
-prev <- 0.8
-cn <- 3
-avg.copies <- (cn*prev + 2*(1-prev))*pur + 2*(1-pur)
-pur.bound <- (cn-1)*prev*pur/avg.copies
-ccf.bound <- pur/avg.copies
+For brevity, we will assign variables to the the midpoints of the two
+problematic regions. The midpoint of the region between ``not on CNA'' and
+``minor strand'' is
 
-ccf.no.amp <- avg.copies*vaf/pur
-ccf.amp <- avg.copies*vaf/pur - (cn-2)*prev
-amp.idx <- which(ccf.amp >= prev & ccf.amp <= 1)
-no.amp.idx <- which(ccf.no.amp <= 1)
-
-plot(vaf, ccf.amp, col='red', main='', xlab='VAF', ylab='CCF', type='l')
-lines(vaf, ccf.no.amp, col='blue')
-lines(vaf[amp.idx], ccf.amp[amp.idx], col='red', lwd=5)
-lines(vaf[no.amp.idx], ccf.no.amp[no.amp.idx], col='blue', lwd=5)
-abline(v=pur.bound, lty=2)
-abline(v=ccf.bound, lty=3)
-
-legend('topleft', 
-       legend=c('amplified', 'not amplified'),
-       col=c('red', 'blue'),
-       lty=c(1,1), bg='white')
-@
-\end{center}
-
-Here, there is a region of ``impossible'' VAF's, which do not agree with either
-scenario. If our estimates of copy number, tumour purity, and CNA prevalence
-are all correct, then we should not observe any VAF's in this region. If we do,
-then they are resolved by using the nearest allowed line, as shown below.
-
-\begin{center}
-<<echo=F, eval=T, dev='pdf', fig.width=4, fig.height=4>>=
-par(mar=c(4,4,0,0))
-vaf <- seq(0, 1, 0.01)
-pur <- 0.8
-prev <- 0.8
-cn <- 3
-avg.copies <- (cn*prev + 2*(1-prev))*pur + 2*(1-pur)
-pur.bound <- (cn-1)*prev*pur/avg.copies
-ccf.bound <- pur/avg.copies
-midpt <- mean(c(ccf.bound, pur.bound))
-
-ccf.no.amp <- avg.copies*vaf/pur
-ccf.amp <- avg.copies*vaf/pur - (cn-2)*prev
-amp.idx <- which(vaf >= midpt)
-no.amp.idx <- which(vaf <= midpt)
-
-plot(vaf, ccf.amp, col='red', main='', xlab='VAF', ylab='CCF', type='l')
-lines(vaf, ccf.no.amp, col='blue')
-lines(vaf[amp.idx], ccf.amp[amp.idx], col='red', lwd=5)
-lines(vaf[no.amp.idx], ccf.no.amp[no.amp.idx], col='blue', lwd=5)
-abline(v=pur.bound, lty=2)
-abline(v=ccf.bound, lty=3)
-
-legend('topleft', 
-       legend=c('amplified', 'not amplified'),
-       col=c('red', 'blue'),
-       lty=c(1,1), bg='white')
-@
-\end{center}
-
-Now, depending on the purity and prevalence values, there might not be a region
-of impossible VAF's. For example, suppose copy number = 3 and purity = 0.8 as
-before, but prevalence = 0.3. Then we end up with the following situation,
-where there is a region of ``ambiguous'' VAF's which might belong to either
-scenario.
-
-\begin{center}
-<<echo=F, eval=T, dev='pdf', fig.width=4, fig.height=4>>=
-par(mar=c(4,4,0,0))
-vaf <- seq(0, 1, 0.01)
-pur <- 0.8
-prev <- 0.3
-cn <- 3
-avg.copies <- (cn*prev + 2*(1-prev))*pur + 2*(1-pur)
-pur.bound <- (cn-1)*prev*pur/avg.copies
-ccf.bound <- pur/avg.copies
-
-ccf.no.amp <- avg.copies*vaf/pur
-ccf.amp <- avg.copies*vaf/pur - (cn-2)*prev
-amp.idx <- which(ccf.amp >= prev & ccf.amp <= 1)
-no.amp.idx <- which(ccf.no.amp <= 1)
-
-plot(vaf, ccf.amp, col='red', main='', xlab='VAF', ylab='CCF', type='l')
-lines(vaf, ccf.no.amp, col='blue')
-lines(vaf[amp.idx], ccf.amp[amp.idx], col='red', lwd=5)
-lines(vaf[no.amp.idx], ccf.no.amp[no.amp.idx], col='blue', lwd=5)
-abline(v=pur.bound, lty=2)
-abline(v=ccf.bound, lty=3)
-
-legend('topleft', 
-       legend=c('amplified', 'not amplified'),
-       col=c('red', 'blue'),
-       lty=c(1,1), bg='white')
-@
-\end{center}
-
-In this case, we correct the same way, by partitioning the ambiguous region
-down the middle.
-
-\begin{center}
-<<echo=F, eval=T, dev='pdf', fig.width=4, fig.height=4>>=
-par(mar=c(4,4,0,0))
-vaf <- seq(0, 1, 0.01)
-pur <- 0.8
-prev <- 0.3
-cn <- 3
-avg.copies <- (cn*prev + 2*(1-prev))*pur + 2*(1-pur)
-pur.bound <- (cn-1)*prev*pur/avg.copies
-ccf.bound <- pur/avg.copies
-midpt <- mean(c(ccf.bound, pur.bound))
-
-ccf.no.amp <- avg.copies*vaf/pur
-ccf.amp <- avg.copies*vaf/pur - (cn-2)*prev
-amp.idx <- which(vaf >= midpt)
-no.amp.idx <- which(vaf <= midpt)
-
-plot(vaf, ccf.amp, col='red', main='', xlab='VAF', ylab='CCF', type='l')
-lines(vaf, ccf.no.amp, col='blue')
-lines(vaf[amp.idx], ccf.amp[amp.idx], col='red', lwd=5)
-lines(vaf[no.amp.idx], ccf.no.amp[no.amp.idx], col='blue', lwd=5)
-abline(v=pur.bound, lty=2)
-abline(v=ccf.bound, lty=3)
-
-legend('topleft', 
-       legend=c('amplified', 'not amplified'),
-       col=c('red', 'blue'),
-       lty=c(1,1), bg='white')
-@
-\end{center}
-
-The boundary corresponding to ``amplified CCF falling below CNA prevalence''
-can be derived from substituting CCF=prevalence into the equation for
-correction on the amplified strand. The resulting boundary is
 \begin{align*}
-    \frac{(\text{copy number - 1})\cdot\text{prevalence}\cdot\text{tumour purity}}{\alpha}.
+    \beta = \frac{\max(\micn+1, 2) \cdot \prev \cdot \pur}{2\alpha},
 \end{align*}
 
-Similarly, the boundary corresponding to ``non-amplified CCF going above 1'' is
+and the midpoint between ``minor strand'' and ``major strand'' is
+
 \begin{align*}
-    \frac{\text{tumour purity}}{\alpha}.
+    \gamma = \frac{[1 + (\max(\micn-1, 0) + \max(\macn, 1)) \cdot \prev] \cdot \pur}{2\alpha}.
 \end{align*}
 
-The midpoint between these two boundaries is
-\begin{align*}
-    \frac{[(\text{copy number} - 1) \cdot \text{prevalence} + 1] \cdot \text{tumour purity}}{\alpha}.
-\end{align*}
-
-Hence, the expression we use for correction of VAF to CCF is
-\begin{align*}
-    VAF = 
+\begin{align}
+    \ccf = 
     \begin{dcases}
-        \frac{\alpha\cdot\text{VAF}}{\text{tumour purity}} 
-            & \text{VAF} \leq \frac{[(\text{copy number} - 1) \cdot \text{prevalence} + 1] \cdot \text{tumour purity}}{\alpha} \\
-        \frac{\alpha\cdot\text{VAF}}{\text{tumour purity}} - (\text{copy number} - 2) \cdot \text{prevalence} 
-            & \text{otherwise}.
+        \frac{\alpha\cdot\vaf}{\pur} 
+        & \vaf < \beta \\
+        \frac{\alpha\cdot\vaf}{\pur} - \max(\micn - 1, 0) \cdot \prev
+        & \beta \leq \vaf \leq \gamma \\
+        \frac{\alpha\cdot\vaf}{\pur} - \max(\macn - 1, 0) \cdot \prev
+        & \vaf > \gamma.
     \end{dcases}
-\end{align*}
+    \label{eq:cor2}
+\end{align}
 
-Here is the correction implemented in R code. The variable \texttt{avg.copies}
-is what I've been calling $\alpha$.
+We illustrate this below for tumour purity = 0.8 and prevalence = 0.5. The
+blue, green, and red lines correspond to the relationships between VAF and CCF
+when, respectively, the mutation is not on the CNA, when it is on the minor
+strand, and when it is on the major strand. The thick regions are where the
+scenario is allowed to be used, and the black line shows the function in
+equation \ref{eq:cor2}. The lines are offset slightly for visibility.
+
+\begin{center}
+<<echo=F, eval=T, dev='pdf', fig.height=5>>=
+par(mar=c(4,4,4,0), mfrow=c(2,3))
+sep <- 0.04
+vaf <- seq(0, 1, 0.01)
+pur <- 0.8
+prev <- 0.5
+
+do.plot <- function (major.cn, minor.cn) {
+    cn <- major.cn + minor.cn
+    alpha <- (cn*prev + 2*(1-prev))*pur + 2*(1-pur)
+    beta <- max(minor.cn+1, 2)*prev*pur/(2*alpha)
+    gamma <- (1+(max(minor.cn-1, 0) + max(major.cn, 1))*prev)*pur/(2*alpha)
+    
+    ccf.no.cna <- alpha*vaf/pur
+    ccf.minor <- alpha*vaf/pur - max(minor.cn-1, 0)*prev 
+    ccf.major <- alpha*vaf/pur - max(major.cn-1, 0)*prev
+    ccf.real <- ifelse(vaf <= beta,
+                       ccf.no.cna,
+                       ifelse(vaf <= gamma,
+                              ccf.minor,
+                              ccf.major)) 
+    
+    no.cna.ok <- 0 <= ccf.no.cna & prev >= ccf.no.cna
+    minor.ok <- prev <= ccf.minor & 1 >= ccf.minor
+    major.ok <- prev <= ccf.major & 1 >= ccf.major
+    
+    plot(vaf, ccf.real - sep, lwd=3, xlab='VAF', ylab='CCF', type='l',
+         main=paste('major CN =', major.cn, ', minor.cn =', minor.cn))
+    
+    lines(vaf, ccf.no.cna, col='blue') 
+    lines(vaf, ccf.minor + sep, col='forestgreen')
+    lines(vaf, ccf.major + 2*sep, col='red')
+    
+    lines(vaf[no.cna.ok], ccf.no.cna[no.cna.ok], col='blue', lwd=3)
+    lines(vaf[minor.ok], ccf.minor[minor.ok] + sep, col='forestgreen', lwd=3)
+    lines(vaf[major.ok], ccf.major[major.ok] + 2*sep, col='red', lwd=3)
+
+    legend('bottomright', 
+           legend=c('no CNA', 'minor', 'major'),
+           col=c('blue', 'forestgreen', 'red'),
+           lty=1, bg='white')
+}
+
+do.plot(0, 0)
+do.plot(1, 0)
+do.plot(2, 0)
+do.plot(1, 1)
+do.plot(2, 1)
+do.plot(3, 2)
+@
+\end{center}
+
+The R function to do this correction is as follows.
+
 \begin{verbatim}
-vaf.to.ccf <- function (vaf, pur, cn, prev) {
-    avg.copies <- (cn*prev + 2*(1-prev))*pur + 2*(1-pur)
-    pur.bound <- (cn-1)*prev*pur/avg.copies
-    ccf.bound <- pur/avg.copies
-    midpoint <- mean(c(pur.bound, ccf.bound))
-    ifelse(cn <= 2 | vaf <= midpoint,
-           avg.copies*vaf/pur,
-           avg.copies*vaf/pur - (cn-2)*prev)
+vaf.to.ccf <- function (vaf, pur, prev, minor.cn, major.cn) {
+
+    alpha <- (cn*prev + 2*(1-prev))*pur + 2*(1-pur)
+    beta <- max(minor.cn+1, 2)*prev*pur/(2*alpha)
+    gamma <- (1+(max(minor.cn-1, 0) + max(major.cn, 1))*prev)*pur/(2*alpha)
+
+    ifelse(vaf <= beta,
+           alpha*vaf/pur,
+           ifelse(vaf <= gamma,
+                  alpha*vaf/pur - max(minor.cn-1, 0)*prev,
+                  alpha*vaf/pur - max(major.cn-1, 0)*prev))
 }
 \end{verbatim}
-
 \end{document}
