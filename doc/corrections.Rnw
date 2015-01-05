@@ -168,80 +168,135 @@ exactly the same, except replacing ``$\micn$'' with ``$\macn$''. Therefore,
 
 Unfortunately, we don't know \textit{a priori} whether a mutation co-occurs
 with the CNA, and if so, whether it is on the major or minor strand. But we can
-make some observations.
+make some observations, which depend on the major and minor copy numbers.
 
-\begin{itemize}
-    \item A mutation cannot have CCF less than $p$ if it is on a duplicated
-        strand (by assumption).
-    \item A mutation cannot have CCF greater than 1.
-    \item A mutation cannot co-occur with a CNA on a strand with zero copies.
-    \item If a mutation does not co-occur with a CNA, then the CCF must be less
-        than the prevalence of the CNA.
-\end{itemize}
+\subsection{No duplications}
 
-By these observations, the corrected CCF must fall in the region $[0, \prev]$
-if the mutation does not co-occur with the CNA. If it does, than the CCF must
-fall in $[\prev, 1]$. Since we are given VAF, not CCF, we must find the values
-of these endpoints in terms of VAF. This is done simply by substituting the
-relevant CCF values into equation \ref{eq:cor}.
-
-\begin{center}
-    \begin{tabular}{ccc}
-        scenario & CCF & VAF \\
-        \hline
-        \multirow{2}{*}{not on CNA} & 0 & 0 \\
-        & $\prev$ & $\pur \cdot \prev / \alpha$ \\
-        \hline
-        \multirow{2}{*}{minor strand} & $\prev$ & $\max(\macn, 1) \cdot \prev \cdot \pur / \alpha$ \\
-        & 1 & $[1+\max(\macn-1, 0) \cdot \prev] \cdot \pur / \alpha$ \\
-        \hline
-        \multirow{2}{*}{major strand} & $\prev$ & $\max(\micn, 1) \cdot \prev \cdot \pur / \alpha$ \\
-        & 1 & $[1+\max(\micn-1, 0) \cdot \prev] \cdot \pur / \alpha$ \\
-        \hline
-    \end{tabular}
-\end{center}
-
-In other words, we can use the formula for ``not on CNA'' when the observed VAF
-is between 0 and $\pur \cdot \prev / \alpha$, and so on. It is likely that
-these allowable regions are not exactly end-to-end, so that there are VAF
-values which are not allowed in any scenario (``impossible''), or are allowed
-in more than one (``ambiguous''). To rectify this, we simply bisect the
-ambiguous or impossible region at its midpoint, and assign each half to the
-nearest allowable scenario.
-
-For brevity, we will assign variables to the the midpoints of the two
-problematic regions. The midpoint of the region between ``not on CNA'' and
-``minor strand'' is
+The simplest case is when neither strand is duplicated, that is, $\macn \leq 1$
+and $\micn \leq 1$. In this case, the mutation must occur at most once in each
+cell, so
 
 \begin{align*}
-    \beta = \frac{\max(\micn+1, 2) \cdot \prev \cdot \pur}{2\alpha},
+    \ccf = \frac{\alpha\cdot\vaf}{\pur}.
 \end{align*}
 
-and the midpoint between ``minor strand'' and ``major strand'' is
+\subsection{One duplication without LOH}
+
+This case occurs when the major strand is duplicated ($\macn > 1$), but the
+minor strand is left unchanged ($\micn = 1$). We have
 
 \begin{align*}
-    \gamma = \frac{[1 + (\max(\micn-1, 0) + \max(\macn, 1)) \cdot \prev] \cdot \pur}{2\alpha}.
+    \ccf = 
+    \begin{dcases}
+        \frac{\alpha\cdot\vaf}{\pur} - (\macn - 1) \cdot \prev
+        & \text{mutation on major strand} \\
+        \frac{\alpha\cdot\vaf}{\pur} 
+        & \text{otherwise}.
+    \end{dcases}
 \end{align*}
 
-\begin{align}
+If the mutation is on the duplicated strand, the CCF must fall between $\prev$
+and 1, by assumption. Otherwise, the CCF must be between 0 and 1. To translate
+these bounds into VAF values, we substitute into the equation above. The
+resulting VAF intervals may overlap, resulting in ``ambiguous'' VAFs, or may
+have a gap between them, containing ``impossible'' VAFs. To resolve these
+cases, we use the midpoint of the problematic interval (ie. the overlap or the
+gap) as the separator between the two cases. This midpoint is
+
+\begin{align*}
+    \vaf = \frac{(\macn \cdot \prev + 1) \cdot \pur}{2\alpha},
+\end{align*}
+
+and therefore,
+
+\begin{align*}
+    \ccf = 
+    \begin{dcases}
+        \frac{\alpha\cdot\vaf}{\pur} - (\macn - 1) \cdot \prev
+        & \vaf \geq \frac{(\macn \cdot \prev + 1) \cdot \pur}{2\alpha} \\
+        \frac{\alpha\cdot\vaf}{\pur} 
+        & \text{otherwise}.
+    \end{dcases}
+\end{align*}
+
+\subsection{One duplication with LOH}
+
+This case occurs when the major strand is duplicated ($\macn > 1$) while the
+minor strand is deleted ($\micn = 0$). The relationship between CCF and VAF is
+the same as in the previous case, but the allowed CCF values are different.
+Since the minor strand has no copies in the CNA region, if the mutation is not
+on the major strand, then it must have CCF no more than $1-\prev$. The new
+midpoint of the allowed regions is
+
+\begin{align*}
+    \vaf = \frac{[1 + (\macn - 1) \cdot \prev] \cdot \pur}{2\alpha},
+\end{align*}
+
+so in this case,
+
+\begin{align*}
+    \ccf = 
+    \begin{dcases}
+        \frac{\alpha\cdot\vaf}{\pur} - (\macn - 1) \cdot \prev
+        & \vaf \geq \frac{[1 + (\macn - 1) \cdot \prev] \cdot \pur}{2\alpha} \\
+        \frac{\alpha\cdot\vaf}{\pur} 
+        & \text{otherwise}.
+    \end{dcases}
+\end{align*}
+
+\subsection{Two duplications}
+
+The final case occurs when both the major and minor strand are duplicated
+($\macn > 1$ and $\micn > 1$). There are three possibilities: the mutation may
+be on the major strand, on the minor strand, or may not co-occur with the CNA
+at all. Hence,
+
+\begin{align*}
+    \ccf = 
+    \begin{dcases}
+        \frac{\alpha\cdot\vaf}{\pur} 
+        & \text{mutation not on CNA} \\
+        \frac{\alpha\cdot\vaf}{\pur} - (\micn - 1) \cdot \prev
+        & \text{mutation on minor strand} \\
+        \frac{\alpha\cdot\vaf}{\pur} - (\macn - 1) \cdot \prev
+        & \text{mutation on major strand}.
+    \end{dcases}
+\end{align*}
+
+The mutation is allowed to be not on the CNA when the CCF would fall in $[0,
+1-\prev]$. In the other two cases, the CCF must fall in $[\prev, 1]$.
+Substituting these CCF values into the above, we get one allowed VAF interval
+for each case. Again, we split between the cases using the midpoint of the
+bounds of the adjacent intervals. For brevity, we shall call these $\beta$ and
+$\gamma$.
+
+\begin{align*}
+    \beta &= \frac{[1 + (\micn - 1) \cdot \prev] \cdot \pur}{2\alpha} \\
+    \gamma &= \frac{[1 + (\macn + \micn - 1) \cdot \prev] \cdot \pur}{2\alpha}.
+\end{align*}
+
+Therefore,
+
+\begin{align*}
     \ccf = 
     \begin{dcases}
         \frac{\alpha\cdot\vaf}{\pur} 
         & \vaf < \beta \\
-        \frac{\alpha\cdot\vaf}{\pur} - \max(\micn - 1, 0) \cdot \prev
-        & \beta \leq \vaf \leq \gamma \\
-        \frac{\alpha\cdot\vaf}{\pur} - \max(\macn - 1, 0) \cdot \prev
-        & \vaf > \gamma.
+        \frac{\alpha\cdot\vaf}{\pur} - (\micn - 1) \cdot \prev
+        & \beta \leq \vaf < \gamma \\
+        \frac{\alpha\cdot\vaf}{\pur} - (\macn - 1) \cdot \prev
+        & \vaf \geq \gamma.
     \end{dcases}
-    \label{eq:cor2}
-\end{align}
+\end{align*}
 
-We illustrate this below for tumour purity = 0.8 and prevalence = 0.5. The
-blue, green, and red lines correspond to the relationships between VAF and CCF
-when, respectively, the mutation is not on the CNA, when it is on the minor
-strand, and when it is on the major strand. The thick regions are where the
-scenario is allowed to be used, and the black line shows the function in
-equation \ref{eq:cor2}. The lines are offset slightly for visibility.
+\section{Example}
+
+We illustrate this correction below for tumour purity = 0.8 and prevalence =
+0.5. The blue, green, and red lines correspond to the relationships between VAF
+and CCF when, respectively, the mutation is not on the CNA, when it is on the
+minor strand, and when it is on the major strand. The thick regions are where
+the scenario is allowed to be used, and the black line shows the correction
+used. The lines are offset slightly for visibility.
 
 \begin{center}
 <<echo=F, eval=T, dev='pdf', fig.height=5>>=
@@ -251,22 +306,45 @@ vaf <- seq(0, 1, 0.01)
 pur <- 0.8
 prev <- 0.5
 
+vaf.to.ccf <- function (vaf, pur, prev, minor.cn, major.cn) {
+    cn <- major.cn + minor.cn
+    alpha <- (cn*prev + 2*(1-prev))*pur + 2*(1-pur)
+
+    if (minor.cn <= 1 & major.cn <= 1) {
+        alpha*vaf/pur
+
+    } else if (minor.cn == 1) {
+        if (vaf >= (major.cn*prev+1)*pur/(2*alpha))
+            alpha*vaf/pur - (major.cn-1)*prev
+        else
+            alpha*vaf/pur
+
+    } else if (minor.cn == 0) {
+        if (vaf >= (1+(major.cn-1)*prev)*pur/(2*alpha))
+            alpha*vaf/pur - (major.cn-1)*prev
+        else
+            alpha*vaf/pur
+
+    } else {
+        if (vaf <= (1+(minor.cn-1)*prev)*pur/(2*alpha))
+            alpha*vaf/pur
+        else if (vaf >= (1+(major.cn+minor.cn-1)*prev)*pur/(2*alpha))
+            alpha*vaf/pur - (major.cn-1)*prev
+        else
+            alpha*vaf/pur - (minor.cn-1)*prev
+    }
+}
+
 do.plot <- function (major.cn, minor.cn) {
     cn <- major.cn + minor.cn
     alpha <- (cn*prev + 2*(1-prev))*pur + 2*(1-pur)
-    beta <- max(minor.cn+1, 2)*prev*pur/(2*alpha)
-    gamma <- (1+(max(minor.cn-1, 0) + max(major.cn, 1))*prev)*pur/(2*alpha)
     
     ccf.no.cna <- alpha*vaf/pur
     ccf.minor <- alpha*vaf/pur - max(minor.cn-1, 0)*prev 
     ccf.major <- alpha*vaf/pur - max(major.cn-1, 0)*prev
-    ccf.real <- ifelse(vaf <= beta,
-                       ccf.no.cna,
-                       ifelse(vaf <= gamma,
-                              ccf.minor,
-                              ccf.major)) 
+    ccf.real <- mapply(vaf.to.ccf, vaf, pur, prev, minor.cn, major.cn)
     
-    no.cna.ok <- 0 <= ccf.no.cna & prev >= ccf.no.cna
+    no.cna.ok <- 0 <= ccf.no.cna & 1-prev >= ccf.no.cna
     minor.ok <- prev <= ccf.minor & 1 >= ccf.minor
     major.ok <- prev <= ccf.major & 1 >= ccf.major
     
@@ -274,17 +352,25 @@ do.plot <- function (major.cn, minor.cn) {
          main=paste('major CN =', major.cn, ', minor.cn =', minor.cn))
     
     lines(vaf, ccf.no.cna, col='blue') 
-    lines(vaf, ccf.minor + sep, col='forestgreen')
+    if (minor.cn > 0)
+        lines(vaf, ccf.minor + sep, col='forestgreen')
     lines(vaf, ccf.major + 2*sep, col='red')
     
     lines(vaf[no.cna.ok], ccf.no.cna[no.cna.ok], col='blue', lwd=3)
-    lines(vaf[minor.ok], ccf.minor[minor.ok] + sep, col='forestgreen', lwd=3)
+    if (minor.cn > 0)
+        lines(vaf[minor.ok], ccf.minor[minor.ok] + sep, col='forestgreen', lwd=3)
     lines(vaf[major.ok], ccf.major[major.ok] + 2*sep, col='red', lwd=3)
 
-    legend('bottomright', 
-           legend=c('no CNA', 'minor', 'major'),
-           col=c('blue', 'forestgreen', 'red'),
-           lty=1, bg='white')
+    if (minor.cn > 0)
+        legend('bottomright', 
+               legend=c('no CNA', 'minor', 'major'),
+               col=c('blue', 'forestgreen', 'red'),
+               lty=1, bg='white')
+    else
+        legend('bottomright', 
+               legend=c('no CNA', 'major'),
+               col=c('blue', 'red'),
+               lty=1, bg='white')
 }
 
 do.plot(0, 0)
@@ -296,20 +382,44 @@ do.plot(3, 2)
 @
 \end{center}
 
+\newpage
+
+\section{Code}
+
 The R function to do this correction is as follows.
 
 \begin{verbatim}
 vaf.to.ccf <- function (vaf, pur, prev, minor.cn, major.cn) {
-
+    cn <- major.cn + minor.cn
     alpha <- (cn*prev + 2*(1-prev))*pur + 2*(1-pur)
-    beta <- max(minor.cn+1, 2)*prev*pur/(2*alpha)
-    gamma <- (1+(max(minor.cn-1, 0) + max(major.cn, 1))*prev)*pur/(2*alpha)
 
-    ifelse(vaf <= beta,
-           alpha*vaf/pur,
-           ifelse(vaf <= gamma,
-                  alpha*vaf/pur - max(minor.cn-1, 0)*prev,
-                  alpha*vaf/pur - max(major.cn-1, 0)*prev))
+    # no duplications
+    if (minor.cn <= 1 & major.cn <= 1) {
+        alpha*vaf/pur
+
+    # one duplication, no LOH
+    } else if (minor.cn == 1) {
+        if (vaf >= (major.cn*prev+1)*pur/(2*alpha))
+            alpha*vaf/pur - (major.cn-1)*prev
+        else
+            alpha*vaf/pur
+
+    # one duplication with LOH
+    } else if (minor.cn == 0) {
+        if (vaf >= (1+(major.cn-1)*prev)*pur/(2*alpha))
+            alpha*vaf/pur - (major.cn-1)*prev
+        else
+            alpha*vaf/pur
+
+    # two duplications
+    } else {
+        if (vaf <= (1+(minor.cn-1)*prev)*pur/(2*alpha))
+            alpha*vaf/pur
+        else if (vaf >= (1+(major.cn+minor.cn-1)*prev)*pur/(2*alpha))
+            alpha*vaf/pur - (major.cn-1)*prev
+        else
+            alpha*vaf/pur - (minor.cn-1)*prev
+    }
 }
 \end{verbatim}
 \end{document}
